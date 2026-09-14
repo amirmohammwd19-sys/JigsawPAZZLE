@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Piece, Edges, Particle } from './types';
 import { genEdges, getShape, generatePiecePath, createPieces, swapPieces, isPieceCorrect, isPuzzleComplete, getCorrectCount, formatTime, calculateProgress } from './utils';
-import { playClick, playSelect, playSwap, playCorrect, playCombo, playUndo, playHint, playAutoSolve, playWin, playTimeWarning, playAchievement, beep, setMasterVolume, getMasterVolume } from './audio';
+import { playClick, playSelect, playSwap, playCorrect, playCombo, playUndo, playHint, playAutoSolve, playWin, playTimeWarning, playAchievement, beep, setMasterVolume, getMasterVolume, playComboLevel, playStreakBreak, playStreakContinue, playLevelUp, playPowerUp, playError } from './audio';
 import { getStats, saveStats, getRecord, saveRecord, getLeaderboard, saveToLeaderboard, saveGame, clearAutoSave, exportSaveData, importSaveData } from './storage';
 import { checkAchievements, getAchievementById, ACHIEVEMENTS } from './achievements';
 import { DIFFICULTIES, GAME_MODES, PUZZLES, VERSION, MAX_HISTORY, TIME_ATTACK_DURATION, AUTO_SOLVE_INTERVAL, PARTICLE_COUNT, TOAST_DURATION, HINT_DURATION, CONFETTI_DURATION, AUTO_SAVE_INTERVAL } from './config';
@@ -348,30 +348,63 @@ function StatsScreen({ onBack }: { onBack: () => void }) {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10">
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all">
             <div className="text-4xl mb-2">🎮</div>
             <div className="text-3xl font-black text-white">{stats.gamesPlayed}</div>
             <div className="text-purple-200 text-sm">بازی‌ها</div>
           </div>
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10">
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all">
             <div className="text-4xl mb-2">🔄</div>
             <div className="text-3xl font-black text-white">{stats.totalMoves}</div>
             <div className="text-purple-200 text-sm">حرکات</div>
+            <div className="text-purple-300/60 text-xs mt-1">
+              {stats.gamesPlayed > 0 ? `میانگین: ${Math.round(stats.totalMoves / stats.gamesPlayed)}` : '-'}
+            </div>
           </div>
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10">
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all">
             <div className="text-4xl mb-2">🔥</div>
             <div className="text-3xl font-black text-white">{stats.bestStreak}</div>
             <div className="text-purple-200 text-sm">Streak</div>
           </div>
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10">
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all">
             <div className="text-4xl mb-2">💎</div>
             <div className="text-3xl font-black text-white">{stats.maxCombo}</div>
             <div className="text-purple-200 text-sm">Combo</div>
           </div>
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10">
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all">
             <div className="text-4xl mb-2">✅</div>
             <div className="text-3xl font-black text-white">{stats.totalCorrect}</div>
             <div className="text-purple-200 text-sm">تکه‌ها</div>
+            <div className="text-purple-300/60 text-xs mt-1">
+              {stats.bestEfficiency ? `کارایی: ${stats.bestEfficiency}%` : '-'}
+            </div>
+          </div>
+        </div>
+
+        {/* Additional Stats */}
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 mb-8">
+          <h3 className="text-2xl font-bold text-white mb-4">📈 آمار پیشرفته</h3>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <div className="text-2xl font-black text-yellow-300">{stats.totalXP || 0}</div>
+              <div className="text-purple-200 text-sm">کل XP</div>
+            </div>
+            <div>
+              <div className="text-2xl font-black text-blue-300">
+                {stats.totalTime ? formatTime(stats.totalTime) : '00:00'}
+              </div>
+              <div className="text-purple-200 text-sm">کل زمان</div>
+            </div>
+            <div>
+              <div className="text-2xl font-black text-green-300">
+                {stats.gamesPlayed > 0 && stats.totalTime ? formatTime(Math.round(stats.totalTime / stats.gamesPlayed)) : '00:00'}
+              </div>
+              <div className="text-purple-200 text-sm">میانگین زمان</div>
+            </div>
+            <div>
+              <div className="text-2xl font-black text-purple-300">{stats.achievements.length}</div>
+              <div className="text-purple-200 text-sm">Achievements</div>
+            </div>
           </div>
         </div>
 
@@ -940,17 +973,29 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
     setTimeout(() => setToast(null), TOAST_DURATION);
   };
 
-  const spawnParticles = useCallback((x: number, y: number, count = PARTICLE_COUNT) => {
+  const spawnParticles = useCallback((x: number, y: number, count = PARTICLE_COUNT, type: 'normal' | 'celebration' | 'streak' = 'normal') => {
     const np: Particle[] = [];
+    
+    const colors = {
+      normal: ['#fbbf24', '#34d399', '#f472b6', '#60a5fa', '#a78bfa'],
+      celebration: ['#fbbf24', '#f59e0b', '#ef4444', '#ec4899', '#8b5cf6', '#06b6d4', '#10b981'],
+      streak: ['#ef4444', '#f97316', '#fbbf24', '#f59e0b']
+    };
+    
+    const selectedColors = colors[type];
+    
     for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count;
+      const speed = type === 'celebration' ? 8 + Math.random() * 4 : 5 + Math.random() * 3;
+      
       np.push({
         id: Date.now() + i + Math.random(),
         x, y,
-        vx: (Math.random() - 0.5) * 10,
-        vy: (Math.random() - 0.5) * 10 - 4,
-        life: 40 + Math.random() * 20,
-        color: ['#fbbf24', '#34d399', '#f472b6', '#60a5fa', '#a78bfa'][Math.floor(Math.random() * 5)],
-        size: 2 + Math.random() * 5
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - (type === 'celebration' ? 6 : 4),
+        life: type === 'celebration' ? 60 + Math.random() * 30 : 40 + Math.random() * 20,
+        color: selectedColors[Math.floor(Math.random() * selectedColors.length)],
+        size: type === 'celebration' ? 3 + Math.random() * 6 : 2 + Math.random() * 5
       });
     }
     setParticles(prev => [...prev, ...np]);
@@ -972,25 +1017,27 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
       setStreak(s => {
         const ns = s + 1;
         setBestStreak(b => Math.max(b, ns));
+        if (soundOn && ns > 1) playStreakContinue();
         return ns;
       });
       setCombo(c => {
         const nc = c + 1;
         setMaxCombo(m => Math.max(m, nc));
-        if (nc >= 3 && soundOn) playCombo();
+        if (nc >= 3 && soundOn) playComboLevel(nc);
         return nc;
       });
       if (soundOn && combo < 3) playCorrect();
       if (p1ok && dims) {
         setLastPlacedId(p1.id);
-        spawnParticles(p1.c * dims.pw + dims.ext + dims.pw / 2, p1.r * dims.ph + dims.ext + dims.ph / 2);
+        spawnParticles(p1.c * dims.pw + dims.ext + dims.pw / 2, p1.r * dims.ph + dims.ext + dims.ph / 2, 25, 'celebration');
       }
       if (p2ok && dims) {
         setLastPlacedId(p2.id);
-        spawnParticles(p2.c * dims.pw + dims.ext + dims.pw / 2, p2.r * dims.ph + dims.ext + dims.ph / 2);
+        spawnParticles(p2.c * dims.pw + dims.ext + dims.pw / 2, p2.r * dims.ph + dims.ext + dims.ph / 2, 25, 'celebration');
       }
       setTimeout(() => setLastPlacedId(null), 800);
     } else {
+      if (streak > 0 && soundOn) playStreakBreak();
       setStreak(0);
       setCombo(0);
       if (soundOn) playSwap();
@@ -1242,18 +1289,62 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
             )}
             <button 
               onClick={() => setPreview(true)}
-              className="px-2 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-white text-xs"
-              title="پیش‌نمایش (P)"
+              className="px-2 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-white text-xs tooltip"
+              data-tooltip="پیش‌نمایش (P)"
             >
               👁️
             </button>
-            <button onClick={() => setShowThumb(!showThumb)} className={`px-2 py-1 rounded-lg text-white text-xs ${showThumb ? 'bg-purple-500' : 'bg-white/10'}`}>🖼️</button>
-            <button onClick={() => setShowGrid(!showGrid)} className={`px-2 py-1 rounded-lg text-white text-xs ${showGrid ? 'bg-blue-500/80' : 'bg-white/10'}`}>⊞</button>
-            <button onClick={undo} disabled={history.length === 0} className={`px-2 py-1 rounded-lg text-white text-xs ${history.length > 0 ? 'bg-blue-500/80 hover:bg-blue-500' : 'bg-white/5 opacity-50'}`}>↩️</button>
-            <button onClick={redo} disabled={redoStack.length === 0} className={`px-2 py-1 rounded-lg text-white text-xs ${redoStack.length > 0 ? 'bg-purple-500/80 hover:bg-purple-500' : 'bg-white/5 opacity-50'}`}>↪️</button>
-            <button onClick={doHint} className="px-2 py-1 bg-amber-500/80 hover:bg-amber-500 rounded-lg text-white text-xs">💡</button>
-            <button onClick={() => setSoundOn(!soundOn)} className={`px-2 py-1 rounded-lg text-white text-xs ${soundOn ? 'bg-green-500/80' : 'bg-white/10'}`}>{soundOn ? '🔊' : '🔇'}</button>
-            <button onClick={reset} className="px-2 py-1 bg-red-500/80 hover:bg-red-500 rounded-lg text-white text-xs">🔄</button>
+            <button 
+              onClick={() => setShowThumb(!showThumb)} 
+              className={`px-2 py-1 rounded-lg text-white text-xs tooltip ${showThumb ? 'bg-purple-500' : 'bg-white/10'}`}
+              data-tooltip={showThumb ? 'مخفی کردن thumbnail' : 'نمایش thumbnail'}
+            >
+              🖼️
+            </button>
+            <button 
+              onClick={() => setShowGrid(!showGrid)} 
+              className={`px-2 py-1 rounded-lg text-white text-xs tooltip ${showGrid ? 'bg-blue-500/80' : 'bg-white/10'}`}
+              data-tooltip={showGrid ? 'مخفی کردن grid' : 'نمایش grid'}
+            >
+              ⊞
+            </button>
+            <button 
+              onClick={undo} 
+              disabled={history.length === 0} 
+              className={`px-2 py-1 rounded-lg text-white text-xs tooltip ${history.length > 0 ? 'bg-blue-500/80 hover:bg-blue-500' : 'bg-white/5 opacity-50'}`}
+              data-tooltip="برگشت (Ctrl+Z)"
+            >
+              ↩️
+            </button>
+            <button 
+              onClick={redo} 
+              disabled={redoStack.length === 0} 
+              className={`px-2 py-1 rounded-lg text-white text-xs tooltip ${redoStack.length > 0 ? 'bg-purple-500/80 hover:bg-purple-500' : 'bg-white/5 opacity-50'}`}
+              data-tooltip="بازگشت (Ctrl+Y)"
+            >
+              ↪️
+            </button>
+            <button 
+              onClick={doHint} 
+              className="px-2 py-1 bg-amber-500/80 hover:bg-amber-500 rounded-lg text-white text-xs tooltip"
+              data-tooltip="راهنما (H)"
+            >
+              💡
+            </button>
+            <button 
+              onClick={() => setSoundOn(!soundOn)} 
+              className={`px-2 py-1 rounded-lg text-white text-xs tooltip ${soundOn ? 'bg-green-500/80' : 'bg-white/10'}`}
+              data-tooltip={soundOn ? 'قطع صدا' : 'فعال کردن صدا'}
+            >
+              {soundOn ? '🔊' : '🔇'}
+            </button>
+            <button 
+              onClick={reset} 
+              className="px-2 py-1 bg-red-500/80 hover:bg-red-500 rounded-lg text-white text-xs tooltip"
+              data-tooltip="شروع مجدد"
+            >
+              🔄
+            </button>
           </div>
         </div>
         <div className="mt-2 bg-black/30 rounded-full p-1 border border-white/10">

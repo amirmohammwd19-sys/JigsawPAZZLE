@@ -73,3 +73,58 @@ export function playAchievement(): void {
     setTimeout(() => createSmoothTone(f, 0.3, 'sine', 0.05, 0.02, 0.15), i * 80);
   });
 }
+
+// New: Combo sounds
+export function playComboLevel(level: number): void {
+  const baseFreq = 440;
+  const multiplier = 1 + (level * 0.1);
+  createSmoothTone(baseFreq * multiplier, 0.2, 'sine', 0.06, 0.01, 0.1);
+  setTimeout(() => createSmoothTone(baseFreq * multiplier * 1.25, 0.2, 'sine', 0.05, 0.01, 0.1), 80);
+  if (level >= 5) {
+    setTimeout(() => createSmoothTone(baseFreq * multiplier * 1.5, 0.25, 'sine', 0.04, 0.01, 0.12), 160);
+  }
+}
+
+// New: Streak sounds
+export function playStreakBreak(): void {
+  createSmoothTone(300, 0.15, 'sawtooth', 0.04, 0.01, 0.08);
+  setTimeout(() => createSmoothTone(250, 0.15, 'sawtooth', 0.03, 0.01, 0.08), 100);
+}
+
+export function playStreakContinue(): void {
+  createSmoothTone(600, 0.1, 'sine', 0.05, 0.01, 0.05);
+  setTimeout(() => createSmoothTone(700, 0.1, 'sine', 0.04, 0.01, 0.05), 60);
+}
+
+// New: Level up sound
+export function playLevelUp(): void {
+  [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => {
+    setTimeout(() => createSmoothTone(f, 0.4, 'sine', 0.06, 0.03, 0.2), i * 120);
+  });
+  setTimeout(() => {
+    createSmoothTone(1318.51, 0.6, 'sine', 0.05, 0.05, 0.3);
+  }, 500);
+}
+
+// New: Power-up use sound
+export function playPowerUp(): void {
+  [400, 500, 600, 700, 800].forEach((f, i) => {
+    setTimeout(() => createSmoothTone(f, 0.15, 'sine', 0.04, 0.01, 0.08), i * 50);
+  });
+}
+
+// New: Error/invalid action sound
+export function playError(): void {
+  createSmoothTone(200, 0.2, 'square', 0.04, 0.01, 0.1);
+  setTimeout(() => createSmoothTone(180, 0.2, 'square', 0.03, 0.01, 0.1), 100);
+}
+
+// New: Ambient background sound (optional)
+export function playAmbient(): void {
+  const notes = [261.63, 329.63, 392.00]; // C4, E4, G4 - C major chord
+  notes.forEach((freq, i) => {
+    setTimeout(() => {
+      createSmoothTone(freq, 2.0, 'sine', 0.02, 0.5, 1.0);
+    }, i * 100);
+  });
+}
