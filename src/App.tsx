@@ -74,29 +74,32 @@ export default function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">
       {showDailyReward && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-3xl p-8 max-w-md w-full text-center border-2 border-yellow-400/50 shadow-2xl animate-bounce-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-3xl p-8 max-w-md w-full text-center border-2 border-yellow-400/50 shadow-2xl animate-bounce-in animate-glow">
             <div className="text-8xl mb-4 animate-float">🎁</div>
-            <h2 className="text-3xl font-black text-white mb-2">پاداش روزانه!</h2>
+            <h2 className="text-3xl font-black text-white mb-2 animate-pop-in">پاداش روزانه!</h2>
             <p className="text-yellow-200 text-lg mb-6">روز {getLoginStreak() + 1} ورود متوالی</p>
-            <div className="bg-white/10 rounded-2xl p-6 mb-6 border border-yellow-400/30">
-              <div className="text-5xl font-black text-yellow-300 mb-2">+{dailyRewardAmount}</div>
+            <div className="bg-white/10 rounded-2xl p-6 mb-6 border border-yellow-400/30 animate-scale-in">
+              <div className="text-5xl font-black text-yellow-300 mb-2 animate-pulse">+{dailyRewardAmount}</div>
               <div className="text-yellow-200">XP</div>
             </div>
-            <button onClick={handleClaimDailyReward} className="w-full px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 rounded-xl text-white font-bold transition-all transform hover:scale-105 shadow-lg">
-              دریافت پاداش
+            <button 
+              onClick={handleClaimDailyReward} 
+              className="w-full px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 rounded-xl text-white font-bold transition-all transform hover:scale-105 shadow-lg animate-glow"
+            >
+              🎉 دریافت پاداش
             </button>
           </div>
         </div>
       )}
 
       <div className="max-w-6xl mx-auto px-4 py-12 text-center">
-        <div className="text-7xl mb-4 animate-float">🧩</div>
-        <h1 className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-pink-200 to-purple-200 mb-3">
+        <div className="text-7xl mb-4 animate-float animate-glow">🧩</div>
+        <h1 className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-pink-200 to-purple-200 mb-3 animate-pop-in">
           Puzzle Master
         </h1>
-        <p className="text-xl text-purple-200 mb-2">پازل جیگساو حرفه‌ای</p>
-        <p className="text-sm text-purple-300/60 mb-8">لذت ببر • آرامش داشته باش • چالش کن</p>
+        <p className="text-xl text-purple-200 mb-2 animate-fade-in">پازل جیگساو حرفه‌ای</p>
+        <p className="text-sm text-purple-300/60 mb-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>لذت ببر • آرامش داشته باش • چالش کن</p>
 
         {/* Difficulty */}
         <div className="mb-8">
@@ -472,7 +475,7 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
 
       setTimeout(() => setConfetti(false), CONFETTI_DURATION);
     }
-  }, [pieces, done]);
+  }, [pieces, done, soundOn, name, time, moves, bestStreak, maxCombo, gameMode, difficulty]);
 
   // Particles
   useEffect(() => {
@@ -678,6 +681,14 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
     setBestStreak(0);
     setCombo(0);
     setMaxCombo(0);
+    setPaused(false);
+    setToast(null);
+    setHint(null);
+    setDragPiece(null);
+    setDragPos(null);
+    setHoverPiece(null);
+    setParticles([]);
+    setLastPlacedId(null);
   };
 
   const doHint = () => {
@@ -687,6 +698,9 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
       setHint(rp.id);
       setTimeout(() => setHint(null), HINT_DURATION);
       if (soundOn) playHint();
+      showToast('💡 راهنما فعال شد!');
+    } else {
+      showToast('✅ همه تکه‌ها درست قرار گرفتند!');
     }
   };
 
@@ -697,7 +711,11 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
       setHistory(h => h.slice(0, -1));
       setMoves(m => Math.max(0, m - 1));
       setStreak(0);
+      setCombo(0);
       if (soundOn) playUndo();
+      showToast('↩️ حرکت برگردانده شد');
+    } else {
+      showToast('❌ حرکتی برای برگشت وجود ندارد');
     }
   };
 
@@ -708,6 +726,9 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
       setRedoStack(r => r.slice(0, -1));
       setMoves(m => m + 1);
       if (soundOn) beep(400, 0.1, 'sine', 0.05);
+      showToast('↪️ حرکت دوباره انجام شد');
+    } else {
+      showToast('❌ حرکتی برای تکرار وجود ندارد');
     }
   };
 
@@ -749,7 +770,7 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [done, preview, sel]);
+  }, [done, preview, sel, undo, redo, doHint]);
 
   const ok = getCorrectCount(pieces);
   const prog = calculateProgress(pieces);
@@ -782,7 +803,7 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
       {confetti && <Confetti />}
 
       {toast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-full font-bold shadow-2xl toast-enter">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-full font-bold shadow-2xl toast-enter animate-glow">
           {toast}
         </div>
       )}
@@ -870,7 +891,7 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
             <button 
               onClick={undo} 
               disabled={history.length === 0} 
-              className={`px-2 py-1 rounded-lg text-white text-xs transition-all ${history.length > 0 ? 'bg-blue-500/80 hover:bg-blue-500' : 'bg-white/5 opacity-50'}`}
+              className={`px-2 py-1 rounded-lg text-white text-xs transition-all card-hover ${history.length > 0 ? 'bg-blue-500/80 hover:bg-blue-500' : 'bg-white/5 opacity-50 cursor-not-allowed'}`}
               title="برگشت (Ctrl+Z)"
             >
               ↩️
@@ -878,14 +899,14 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
             <button 
               onClick={redo} 
               disabled={redoStack.length === 0} 
-              className={`px-2 py-1 rounded-lg text-white text-xs transition-all ${redoStack.length > 0 ? 'bg-purple-500/80 hover:bg-purple-500' : 'bg-white/5 opacity-50'}`}
+              className={`px-2 py-1 rounded-lg text-white text-xs transition-all card-hover ${redoStack.length > 0 ? 'bg-purple-500/80 hover:bg-purple-500' : 'bg-white/5 opacity-50 cursor-not-allowed'}`}
               title="بازگشت (Ctrl+Y)"
             >
               ↪️
             </button>
             <button 
               onClick={doHint} 
-              className="px-2 py-1 bg-amber-500/80 hover:bg-amber-500 rounded-lg text-white text-xs transition-all"
+              className="px-2 py-1 bg-amber-500/80 hover:bg-amber-500 rounded-lg text-white text-xs transition-all card-hover"
               title="راهنما (H)"
             >
               💡
@@ -901,14 +922,14 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
             )}
             <button 
               onClick={() => setSoundOn(!soundOn)} 
-              className={`px-2 py-1 rounded-lg text-white text-xs transition-all ${soundOn ? 'bg-green-500/80 hover:bg-green-500' : 'bg-white/10 hover:bg-white/20'}`}
+              className={`px-2 py-1 rounded-lg text-white text-xs transition-all card-hover ${soundOn ? 'bg-green-500/80 hover:bg-green-500' : 'bg-white/10 hover:bg-white/20'}`}
               title={soundOn ? 'قطع صدا' : 'فعال کردن صدا'}
             >
               {soundOn ? '🔊' : '🔇'}
             </button>
             <button 
               onClick={reset} 
-              className="px-2 py-1 bg-red-500/80 hover:bg-red-500 rounded-lg text-white text-xs transition-all"
+              className="px-2 py-1 bg-red-500/80 hover:bg-red-500 rounded-lg text-white text-xs transition-all card-hover"
               title="شروع مجدد"
             >
               🔄
@@ -1085,62 +1106,74 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
       </div>
 
       {done && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-          <div className="bg-gradient-to-br from-purple-800 via-indigo-800 to-pink-800 rounded-3xl p-6 md:p-8 max-w-md w-full text-center border border-white/20 shadow-2xl animate-bounce-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-gradient-to-br from-purple-800 via-indigo-800 to-pink-800 rounded-3xl p-6 md:p-8 max-w-md w-full text-center border border-white/20 shadow-2xl animate-bounce-in animate-glow">
             {gameMode === 'timeAttack' && time === 0 ? (
               <>
-                <div className="text-7xl mb-4">⏰</div>
-                <h2 className="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-orange-400 mb-2">وقت تمام شد!</h2>
-                <p className="text-purple-200 text-lg mb-6">متأسفانه نتونستی پازل رو در زمان مشخص شده کامل کنی</p>
+                <div className="text-7xl mb-4 animate-shake">⏰</div>
+                <h2 className="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-orange-400 mb-2 animate-pop-in">وقت تمام شد!</h2>
+                <p className="text-purple-200 text-lg mb-6 animate-fade-in">متأسفانه نتونستی پازل رو در زمان مشخص شده کامل کنی</p>
               </>
             ) : (
               <>
-                <div className="text-7xl mb-4 animate-bounce-slow">🏆</div>
-                <h2 className="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-pink-200 mb-2">تبریک!</h2>
-                <p className="text-purple-200 text-lg mb-6">پازل {config.total} تکه رو تکمیل کردی!</p>
+                <div className="text-7xl mb-4 animate-bounce-slow animate-glow">🏆</div>
+                <h2 className="text-3xl md:text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 to-pink-200 mb-2 animate-pop-in">تبریک!</h2>
+                <p className="text-purple-200 text-lg mb-6 animate-fade-in">پازل {config.total} تکه رو تکمیل کردی!</p>
               </>
             )}
 
             <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="bg-white/10 rounded-2xl p-4 border border-white/10">
-                <div className="text-yellow-300 text-2xl md:text-3xl font-black font-mono">{formatTime(gameMode === 'timeAttack' ? TIME_ATTACK_DURATION - time : time)}</div>
+              <div className="bg-white/10 rounded-2xl p-4 border border-white/10 animate-scale-in card-hover" style={{ animationDelay: '0.1s' }}>
+                <div className="text-yellow-300 text-2xl md:text-3xl font-black font-mono animate-pulse">{formatTime(gameMode === 'timeAttack' ? TIME_ATTACK_DURATION - time : time)}</div>
                 <div className="text-purple-200 text-sm mt-1">⏱️ زمان</div>
               </div>
-              <div className="bg-white/10 rounded-2xl p-4 border border-white/10">
-                <div className="text-blue-300 text-2xl md:text-3xl font-black font-mono">{moves}</div>
+              <div className="bg-white/10 rounded-2xl p-4 border border-white/10 animate-scale-in card-hover" style={{ animationDelay: '0.2s' }}>
+                <div className="text-blue-300 text-2xl md:text-3xl font-black font-mono animate-pulse">{moves}</div>
                 <div className="text-purple-200 text-sm mt-1">🔄 حرکات</div>
               </div>
             </div>
 
             {bestStreak >= 3 && (
-              <div className="bg-gradient-to-r from-orange-500/20 to-red-500/20 rounded-xl p-3 mb-4 border border-orange-400/30">
-                <div className="text-orange-300 text-lg font-bold">🔥 بهترین Streak: {bestStreak}</div>
+              <div className="bg-gradient-to-r from-orange-500/20 to-red-500/20 rounded-xl p-3 mb-4 border border-orange-400/30 animate-scale-in animate-glow" style={{ animationDelay: '0.2s' }}>
+                <div className="text-orange-300 text-lg font-bold animate-pulse">🔥 بهترین Streak: {bestStreak}</div>
               </div>
             )}
 
             {maxCombo >= 3 && (
-              <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-xl p-3 mb-4 border border-purple-400/30">
-                <div className="text-purple-300 text-lg font-bold">💎 بیشترین Combo: x{maxCombo}</div>
+              <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-xl p-3 mb-4 border border-purple-400/30 animate-scale-in animate-glow" style={{ animationDelay: '0.25s' }}>
+                <div className="text-purple-300 text-lg font-bold animate-pulse">💎 بیشترین Combo: x{maxCombo}</div>
               </div>
             )}
 
             {record && (
-              <div className="bg-white/5 rounded-xl p-3 mb-4 border border-white/10">
+              <div className="bg-white/5 rounded-xl p-3 mb-4 border border-white/10 animate-scale-in" style={{ animationDelay: '0.3s' }}>
                 <div className="text-purple-200 text-sm">🏆 رکورد قبلی: {formatTime(record.time)}</div>
                 {(gameMode !== 'timeAttack' || time > 0) && (time < record.time || (time === record.time && moves < record.moves)) && (
-                  <div className="text-green-300 text-sm font-bold mt-1 animate-pulse">🎉 رکورد جدید!</div>
+                  <div className="text-green-300 text-sm font-bold mt-1 animate-pulse animate-glow">🎉 رکورد جدید!</div>
                 )}
               </div>
             )}
 
-            <div className="mb-6">
-              <div className="text-3xl">{moves < 80 ? '⭐⭐⭐' : moves < 140 ? '⭐⭐' : '⭐'}</div>
-              <p className="text-purple-300 text-sm mt-2">{moves < 80 ? 'فوق‌العاده! استاد پازل!' : moves < 140 ? 'عالی بود!' : 'آفرین!'}</p>
+            <div className="mb-6 animate-scale-in" style={{ animationDelay: '0.3s' }}>
+              <div className="text-3xl animate-float">{moves < 80 ? '⭐⭐⭐' : moves < 140 ? '⭐⭐' : '⭐'}</div>
+              <p className="text-purple-300 text-sm mt-2 animate-fade-in">{moves < 80 ? 'فوق‌العاده! استاد پازل!' : moves < 140 ? 'عالی بود!' : 'آفرین!'}</p>
             </div>
 
             <div className="flex flex-col gap-3">
-              <button onClick={reset} className="w-full px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 rounded-xl text-white font-bold transition-all transform hover:scale-105 shadow-lg">🔄 بازی مجدد</button>
-              <button onClick={onBack} className="w-full px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-bold transition-all border border-white/10">🏠 منوی اصلی</button>
+              <button 
+                onClick={reset} 
+                className="w-full px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 rounded-xl text-white font-bold transition-all transform hover:scale-105 shadow-lg animate-glow"
+                style={{ animationDelay: '0.4s' }}
+              >
+                🔄 بازی مجدد
+              </button>
+              <button 
+                onClick={onBack} 
+                className="w-full px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-bold transition-all border border-white/10 card-hover"
+                style={{ animationDelay: '0.5s' }}
+              >
+                🏠 منوی اصلی
+              </button>
             </div>
           </div>
         </div>
@@ -1151,13 +1184,34 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
 
 function Confetti() {
   const colors = ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#54a0ff', '#5f27cd', '#01a3a4', '#f368e0', '#10b981', '#fbbf24'];
-  const pcs = Array.from({ length: 120 }, (_, i) => ({
-    id: i, x: Math.random() * 100, c: colors[i % colors.length], s: 5 + Math.random() * 10, d: Math.random() * 3, dur: 2 + Math.random() * 4, rot: Math.random() * 360, shape: Math.random() > 0.5 ? '50%' : '2px'
+  const pcs = Array.from({ length: 150 }, (_, i) => ({
+    id: i, 
+    x: Math.random() * 100, 
+    c: colors[i % colors.length], 
+    s: 5 + Math.random() * 12, 
+    d: Math.random() * 2, 
+    dur: 2.5 + Math.random() * 3.5, 
+    rot: Math.random() * 360, 
+    shape: Math.random() > 0.5 ? '50%' : '2px',
+    delay: Math.random() * 0.5
   }));
   return (
     <div className="fixed inset-0 pointer-events-none z-[100] overflow-hidden">
       {pcs.map(p => (
-        <div key={p.id} className="absolute" style={{ left: `${p.x}%`, top: '-5%', width: `${p.s}px`, height: `${p.s * 0.6}px`, backgroundColor: p.c, borderRadius: p.shape, transform: `rotate(${p.rot}deg)`, animation: `confetti ${p.dur}s ease-in ${p.d}s forwards` }} />
+        <div 
+          key={p.id} 
+          className="absolute" 
+          style={{ 
+            left: `${p.x}%`, 
+            top: '-5%', 
+            width: `${p.s}px`, 
+            height: `${p.s * 0.6}px`, 
+            backgroundColor: p.c, 
+            borderRadius: p.shape, 
+            transform: `rotate(${p.rot}deg)`, 
+            animation: `confetti ${p.dur}s ease-in ${p.d + p.delay}s forwards` 
+          }} 
+        />
       ))}
     </div>
   );
@@ -1192,31 +1246,31 @@ function StatsScreen({ onBack }: { onBack: () => void }) {
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all">
-            <div className="text-4xl mb-2">🎮</div>
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all card-hover">
+            <div className="text-4xl mb-2 animate-float">🎮</div>
             <div className="text-3xl font-black text-white">{stats.gamesPlayed}</div>
             <div className="text-purple-200 text-sm">بازی‌ها</div>
           </div>
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all">
-            <div className="text-4xl mb-2">🔄</div>
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all card-hover">
+            <div className="text-4xl mb-2 animate-float" style={{ animationDelay: '0.1s' }}>🔄</div>
             <div className="text-3xl font-black text-white">{stats.totalMoves}</div>
             <div className="text-purple-200 text-sm">حرکات</div>
             <div className="text-purple-300/60 text-xs mt-1">
               {stats.gamesPlayed > 0 ? `میانگین: ${Math.round(stats.totalMoves / stats.gamesPlayed)}` : '-'}
             </div>
           </div>
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all">
-            <div className="text-4xl mb-2">🔥</div>
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all card-hover">
+            <div className="text-4xl mb-2 animate-float" style={{ animationDelay: '0.2s' }}>🔥</div>
             <div className="text-3xl font-black text-white">{stats.bestStreak}</div>
             <div className="text-purple-200 text-sm">Streak</div>
           </div>
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all">
-            <div className="text-4xl mb-2">💎</div>
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all card-hover">
+            <div className="text-4xl mb-2 animate-float" style={{ animationDelay: '0.3s' }}>💎</div>
             <div className="text-3xl font-black text-white">{stats.maxCombo}</div>
             <div className="text-purple-200 text-sm">Combo</div>
           </div>
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all">
-            <div className="text-4xl mb-2">✅</div>
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all card-hover">
+            <div className="text-4xl mb-2 animate-float" style={{ animationDelay: '0.4s' }}>✅</div>
             <div className="text-3xl font-black text-white">{stats.totalCorrect}</div>
             <div className="text-purple-200 text-sm">تکه‌ها</div>
             <div className="text-purple-300/60 text-xs mt-1">
@@ -1265,16 +1319,24 @@ function AchievementsScreen({ onBack }: { onBack: () => void }) {
         <h2 className="text-4xl font-black text-white mb-8 text-center">🏆 Achievements</h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {ACHIEVEMENTS.map(a => {
+          {ACHIEVEMENTS.map((a, index) => {
             const unlocked = stats.achievements.includes(a.id);
             return (
-              <div key={a.id} className={`rounded-2xl p-6 border transition-all ${unlocked ? 'bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border-yellow-400/30' : 'bg-white/5 border-white/10 opacity-60'}`}>
+              <div 
+                key={a.id} 
+                className={`rounded-2xl p-6 border transition-all card-hover ${unlocked ? 'bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border-yellow-400/30 animate-glow' : 'bg-white/5 border-white/10 opacity-60'}`}
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
                 <div className="flex items-start gap-4">
-                  <div className="text-5xl">{a.emoji}</div>
+                  <div className={`text-5xl ${unlocked ? 'animate-float' : ''}`} style={{ animationDelay: `${index * 0.1}s` }}>{a.emoji}</div>
                   <div className="flex-1">
                     <h3 className="text-xl font-bold text-white mb-1">{a.title}</h3>
                     <p className="text-purple-200 text-sm mb-3">{a.desc}</p>
-                    {unlocked ? <div className="text-green-300 font-bold">✓ باز شده!</div> : <div className="text-purple-300 text-sm">هنوز باز نشده</div>}
+                    {unlocked ? (
+                      <div className="text-green-300 font-bold animate-pop-in">✓ باز شده!</div>
+                    ) : (
+                      <div className="text-purple-300 text-sm">🔒 هنوز باز نشده</div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1307,26 +1369,41 @@ function TutorialScreen({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 flex items-center justify-center p-4">
-      <div className="max-w-2xl w-full">
+      <div className="max-w-2xl w-full animate-scale-in">
         <div className="bg-white/10 backdrop-blur-md rounded-3xl p-8 border border-white/20 shadow-2xl">
           <div className="text-center mb-8">
-            <div className="text-8xl mb-4">{step.emoji}</div>
-            <h2 className="text-3xl font-black text-white mb-4">{step.title}</h2>
+            <div className="text-8xl mb-4 animate-float">{step.emoji}</div>
+            <h2 className="text-3xl font-black text-white mb-4 animate-pop-in">{step.title}</h2>
             <p className="text-purple-200 text-lg">{step.description}</p>
           </div>
 
           <div className="flex justify-center gap-2 mb-8">
             {TUTORIAL_STEPS.map((_, i) => (
-              <div key={i} className={`w-3 h-3 rounded-full transition-all ${i === currentStep ? 'bg-white scale-125' : i < currentStep ? 'bg-white/50' : 'bg-white/20'}`} />
+              <div 
+                key={i} 
+                className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                  i === currentStep 
+                    ? 'bg-white scale-125 animate-glow' 
+                    : i < currentStep 
+                    ? 'bg-white/50' 
+                    : 'bg-white/20'
+                }`} 
+              />
             ))}
           </div>
 
           <div className="flex gap-4">
-            <button onClick={handleSkip} className="flex-1 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-bold transition-all">
+            <button 
+              onClick={handleSkip} 
+              className="flex-1 px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-bold transition-all transform hover:scale-105"
+            >
               رد شدن
             </button>
-            <button onClick={handleNext} className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 rounded-xl text-white font-bold transition-all transform hover:scale-105">
-              {currentStep === TUTORIAL_STEPS.length - 1 ? 'شروع بازی' : 'بعدی'}
+            <button 
+              onClick={handleNext} 
+              className="flex-1 px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 rounded-xl text-white font-bold transition-all transform hover:scale-105 animate-glow"
+            >
+              {currentStep === TUTORIAL_STEPS.length - 1 ? '🚀 شروع بازی' : '➡️ بعدی'}
             </button>
           </div>
         </div>
