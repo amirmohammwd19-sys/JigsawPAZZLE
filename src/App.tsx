@@ -7,7 +7,10 @@ import { checkAchievements, ACHIEVEMENTS } from './achievements';
 import { DIFFICULTIES, GAME_MODES, PUZZLES, VERSION, MAX_HISTORY, TIME_ATTACK_DURATION, PARTICLE_COUNT, TOAST_DURATION, HINT_DURATION, CONFETTI_DURATION } from './config';
 import { calculateXP, calculateLevel, getProgressToNextLevel, POWER_UPS, getDailyChallenge, hasCompletedDailyChallenge, completeDailyChallenge, calculateStreakBonus, calculateMoveEfficiency, calculateTimeBonus, hasSeenTutorial, markTutorialAsSeen, TUTORIAL_STEPS, THEMES, getCurrentTheme, setTheme, getUnlockedThemes } from './features';
 
-type Screen = 'menu' | 'game' | 'stats' | 'achievements' | 'tutorial' | 'daily' | 'powerups' | 'themes' | 'settings';
+import { getDailyRewards, getLoginStreak, claimDailyReward, loadQuestProgress, saveQuestProgress, generateShareResult, copyToClipboard } from './features';
+import { getLeaderboard, saveToLeaderboard, saveGame, clearAutoSave, exportSaveData, importSaveData } from './storage';
+
+type Screen = 'menu' | 'game' | 'stats' | 'achievements' | 'tutorial' | 'daily' | 'powerups' | 'themes' | 'settings' | 'quests' | 'leaderboard' | 'minigames';
 type DifficultyKey = keyof typeof DIFFICULTIES;
 type GameModeKey = keyof typeof GAME_MODES;
 
@@ -17,7 +20,33 @@ export default function App() {
   const [name, setName] = useState('');
   const [difficulty, setDifficulty] = useState<DifficultyKey>('medium');
   const [gameMode, setGameMode] = useState<GameModeKey>('classic');
+  const [showDailyReward, setShowDailyReward] = useState(false);
+  const [dailyRewardAmount, setDailyRewardAmount] = useState(0);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Check for daily reward on mount
+  useEffect(() => {
+    const loginStreak = getLoginStreak();
+    const rewards = getDailyRewards();
+    const rewardIndex = loginStreak % 7;
+    const reward = rewards[rewardIndex];
+    const lastClaimed = localStorage.getItem('lastDailyReward');
+    const today = new Date().toDateString();
+    if (lastClaimed !== today && reward) {
+      setDailyRewardAmount(reward.reward);
+      setShowDailyReward(true);
+    }
+  }, []);
+
+  const handleClaimDailyReward = () => {
+    const result = claimDailyReward();
+    if (result.success) {
+      const stats = getStats();
+      saveStats({ ...stats, totalXP: (stats.totalXP || 0) + result.reward });
+      localStorage.setItem('lastDailyReward', new Date().toDateString());
+    }
+    setShowDailyReward(false);
+  };
 
   if (screen === 'game') {
     return <Game url={url} name={name} difficulty={difficulty} gameMode={gameMode} onBack={() => setScreen('menu')} />;
@@ -35,9 +64,30 @@ export default function App() {
   if (screen === 'powerups') return <PowerUpsScreen onBack={() => setScreen('menu')} />;
   if (screen === 'themes') return <ThemesScreen onBack={() => setScreen('menu')} />;
   if (screen === 'settings') return <SettingsScreen onBack={() => setScreen('menu')} />;
+  if (screen === 'quests') return <QuestsScreen onBack={() => setScreen('menu')} />;
+  if (screen === 'leaderboard') return <LeaderboardScreen onBack={() => setScreen('menu')} />;
+  if (screen === 'minigames') return <MiniGamesScreen onBack={() => setScreen('menu')} />;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">
+      {/* Daily Reward Popup */}
+      {showDailyReward && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-3xl p-8 max-w-md w-full text-center border-2 border-yellow-400/50 shadow-2xl animate-bounce-in">
+            <div className="text-8xl mb-4 animate-bounce">🎁</div>
+            <h2 className="text-3xl font-black text-white mb-2">پاداش روزانه!</h2>
+            <p className="text-yellow-200 text-lg mb-6">روز {getLoginStreak() + 1} ورود متوالی</p>
+            <div className="bg-white/10 rounded-2xl p-6 mb-6 border border-yellow-400/30">
+              <div className="text-5xl font-black text-yellow-300 mb-2">+{dailyRewardAmount}</div>
+              <div className="text-yellow-200">XP</div>
+            </div>
+            <button onClick={handleClaimDailyReward} className="w-full px-6 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 rounded-xl text-white font-bold transition-all transform hover:scale-105 shadow-lg">
+              دریافت پاداش
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="max-w-6xl mx-auto px-4 py-12 text-center">
         <div className="text-7xl mb-4 animate-bounce">🧩</div>
         <h1 className="text-5xl md:text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-pink-200 to-purple-200 mb-3">
@@ -157,33 +207,53 @@ export default function App() {
 
         {/* Feature Buttons */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8 max-w-4xl mx-auto">
-          <button onClick={() => setScreen('daily')} className="px-4 py-3 bg-gradient-to-r from-orange-500 to-red-500 rounded-xl text-white font-bold">
+          <button onClick={() => setScreen('daily')} className="px-4 py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 rounded-xl text-white font-bold transition-all transform hover:scale-105 shadow-lg">
             <div className="text-2xl mb-1">🎯</div>
             <div className="text-sm">چالش روزانه</div>
           </button>
-          <button onClick={() => setScreen('powerups')} className="px-4 py-3 bg-gradient-to-r from-pink-500 to-purple-500 rounded-xl text-white font-bold">
+          <button onClick={() => setScreen('quests')} className="px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 rounded-xl text-white font-bold transition-all transform hover:scale-105 shadow-lg">
+            <div className="text-2xl mb-1">📜</div>
+            <div className="text-sm">ماموریت‌ها</div>
+          </button>
+          <button onClick={() => setScreen('leaderboard')} className="px-4 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 rounded-xl text-white font-bold transition-all transform hover:scale-105 shadow-lg">
+            <div className="text-2xl mb-1">🏆</div>
+            <div className="text-sm">جدول امتیازات</div>
+          </button>
+          <button onClick={() => setScreen('minigames')} className="px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 rounded-xl text-white font-bold transition-all transform hover:scale-105 shadow-lg">
+            <div className="text-2xl mb-1">🎮</div>
+            <div className="text-sm">بازی‌های کوچک</div>
+          </button>
+          <button onClick={() => setScreen('powerups')} className="px-4 py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-400 hover:to-purple-400 rounded-xl text-white font-bold transition-all transform hover:scale-105 shadow-lg">
             <div className="text-2xl mb-1">✨</div>
             <div className="text-sm">Power-ups</div>
           </button>
-          <button onClick={() => setScreen('themes')} className="px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 rounded-xl text-white font-bold">
+          <button onClick={() => setScreen('themes')} className="px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 rounded-xl text-white font-bold transition-all transform hover:scale-105 shadow-lg">
             <div className="text-2xl mb-1">🎨</div>
             <div className="text-sm">تم‌ها</div>
           </button>
-          <button onClick={() => setScreen('stats')} className="px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-bold">
+          <button onClick={() => setScreen('stats')} className="px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-bold transition-all">
             <div className="text-2xl mb-1">📊</div>
             <div className="text-sm">آمار</div>
           </button>
-          <button onClick={() => setScreen('achievements')} className="px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-bold">
-            <div className="text-2xl mb-1">🏆</div>
+          <button onClick={() => setScreen('achievements')} className="px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-bold transition-all">
+            <div className="text-2xl mb-1">🏅</div>
             <div className="text-sm">Achievements</div>
           </button>
-          <button onClick={() => setScreen('tutorial')} className="px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-bold">
+          <button onClick={() => setScreen('tutorial')} className="px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-bold transition-all">
             <div className="text-2xl mb-1">📖</div>
             <div className="text-sm">آموزش</div>
           </button>
-          <button onClick={() => setScreen('settings')} className="px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-bold">
+          <button onClick={() => setScreen('settings')} className="px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-bold transition-all">
             <div className="text-2xl mb-1">⚙️</div>
             <div className="text-sm">تنظیمات</div>
+          </button>
+          <button onClick={() => {
+            const stats = getStats();
+            const text = generateShareResult('پازل', 0, 0, calculateLevel(stats.totalXP || 0), stats.totalXP || 0);
+            if (copyToClipboard(text)) alert('✅ اطلاعات کپی شد!');
+          }} className="px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 rounded-xl text-white font-bold transition-all transform hover:scale-105 shadow-lg">
+            <div className="text-2xl mb-1">📤</div>
+            <div className="text-sm">اشتراک‌گذاری</div>
           </button>
         </div>
 
@@ -224,6 +294,24 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
   const [toast, setToast] = useState<string | null>(null);
   const [paused, setPaused] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
+  const [showTip, setShowTip] = useState(false);
+  const [currentTip, setCurrentTip] = useState('');
+
+  // Tips system
+  const tips = [
+    '💡 روی تکه‌ها کلیک کنید تا انتخاب شوند',
+    '💡 تکه‌های انتخاب شده را با کلیک روی تکه دیگر جابجا کنید',
+    '💡 می‌توانید تکه‌ها را بکشید و رها کنید',
+    '💡 دکمه 💡 برای راهنمایی استفاده کنید',
+    '💡 دکمه ↩️ برای برگشت حرکت قبلی',
+    '💡 تکه‌های درست با رنگ سبز مشخص می‌شوند',
+  ];
+  const showRandomTip = () => {
+    const randomTip = tips[Math.floor(Math.random() * tips.length)];
+    setCurrentTip(randomTip);
+    setShowTip(true);
+    setTimeout(() => setShowTip(false), 3000);
+  };
   
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -343,6 +431,11 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
         setToast('🎉 رکورد جدید!');
         setTimeout(() => setToast(null), TOAST_DURATION);
       }
+
+      // Save to leaderboard
+      const score = Math.round((10000 / Math.max(1, finalTime)) * (100 / Math.max(1, moves)));
+      saveToLeaderboard({ name: 'Player', score, date: new Date().toISOString(), puzzle: name });
+      clearAutoSave();
 
       setTimeout(() => setConfetti(false), CONFETTI_DURATION);
     }
@@ -619,6 +712,12 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
         </div>
       )}
 
+      {showTip && (
+        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-40 bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-6 py-4 rounded-2xl font-bold shadow-2xl animate-bounce-in max-w-md text-center">
+          {currentTip}
+        </div>
+      )}
+
       {/* PREVIEW MODAL - FIXED */}
       {preview && (
         <div 
@@ -684,6 +783,7 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
             <button onClick={undo} disabled={history.length === 0} className={`px-2 py-1 rounded-lg text-white text-xs ${history.length > 0 ? 'bg-blue-500/80 hover:bg-blue-500' : 'bg-white/5 opacity-50'}`}>↩️</button>
             <button onClick={redo} disabled={redoStack.length === 0} className={`px-2 py-1 rounded-lg text-white text-xs ${redoStack.length > 0 ? 'bg-purple-500/80 hover:bg-purple-500' : 'bg-white/5 opacity-50'}`}>↪️</button>
             <button onClick={doHint} className="px-2 py-1 bg-amber-500/80 hover:bg-amber-500 rounded-lg text-white text-xs">💡</button>
+            <button onClick={showRandomTip} className="px-2 py-1 bg-cyan-500/80 hover:bg-cyan-500 rounded-lg text-white text-xs">📚</button>
             <button onClick={() => setSoundOn(!soundOn)} className={`px-2 py-1 rounded-lg text-white text-xs ${soundOn ? 'bg-green-500/80' : 'bg-white/10'}`}>{soundOn ? '🔊' : '🔇'}</button>
             <button onClick={reset} className="px-2 py-1 bg-red-500/80 hover:bg-red-500 rounded-lg text-white text-xs">🔄</button>
           </div>
@@ -817,6 +917,55 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
                 <circle key={p.id} cx={p.x} cy={p.y} r={p.size * (p.life / 50)} fill={p.color} opacity={Math.min(1, p.life / 30)} />
               ))}
             </svg>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="mt-3 flex justify-center gap-2">
+            <button
+              onClick={() => {
+                const wrongPieces = pieces.filter(p => !isPieceCorrect(p));
+                if (wrongPieces.length > 0) {
+                  const piece = wrongPieces[0];
+                  const targetPiece = pieces.find(p => p.r === piece.cr && p.c === piece.cc && p.id !== piece.id);
+                  if (targetPiece) {
+                    const newPieces = swapPieces(pieces, piece.id, targetPiece.id);
+                    setPieces(newPieces);
+                    setMoves(m => m + 1);
+                    showToast('✨ یک تکه حل شد!');
+                  }
+                }
+              }}
+              disabled={done || pieces.every(p => isPieceCorrect(p))}
+              className="px-3 py-1.5 bg-gradient-to-r from-purple-500/80 to-pink-500/80 hover:from-purple-500 hover:to-pink-500 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg text-white text-xs font-bold transition-all"
+            >
+              ✨ حل یک تکه
+            </button>
+            <button
+              onClick={() => {
+                const wrongPieces = pieces.filter(p => !isPieceCorrect(p));
+                if (wrongPieces.length > 1) {
+                  const newPieces = pieces.map(p => ({ ...p }));
+                  const wrongIndices = wrongPieces.map(p => p.id);
+                  const shuffled = [...wrongIndices];
+                  for (let i = shuffled.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                  }
+                  wrongIndices.forEach((id, idx) => {
+                    const piece = newPieces.find(p => p.id === id)!;
+                    const target = wrongPieces[idx];
+                    piece.r = target.r;
+                    piece.c = target.c;
+                  });
+                  setPieces(newPieces);
+                  showToast('🔀 تکه‌ها مخلوط شدند!');
+                }
+              }}
+              disabled={done || pieces.filter(p => !isPieceCorrect(p)).length <= 1}
+              className="px-3 py-1.5 bg-gradient-to-r from-blue-500/80 to-cyan-500/80 hover:from-blue-500 hover:to-cyan-500 disabled:opacity-30 disabled:cursor-not-allowed rounded-lg text-white text-xs font-bold transition-all"
+            >
+              🔀 مخلوط کردن
+            </button>
           </div>
 
           <div className="mt-2 text-center text-purple-400/40 text-[10px] hidden md:block">
@@ -1152,6 +1301,21 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
         <div className="space-y-4">
           <div className="bg-white/10 rounded-2xl p-6 border border-white/20">
             <h3 className="text-xl font-bold text-white mb-4">💾 مدیریت داده‌ها</h3>
+            <button
+              onClick={() => {
+                const data = exportSaveData();
+                const blob = new Blob([data], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `puzzle-master-backup-${new Date().toISOString().split('T')[0]}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="w-full px-6 py-3 bg-blue-500/80 hover:bg-blue-500 rounded-xl text-white font-bold transition-all mb-3"
+            >
+              📥 خروجی گرفتن از داده‌ها
+            </button>
             <button onClick={() => setShowConfirmReset(true)} className="w-full px-6 py-3 bg-red-500/80 hover:bg-red-500 rounded-xl text-white font-bold">🗑️ حذف تمام داده‌ها</button>
           </div>
           <div className="bg-white/10 rounded-2xl p-6 border border-white/20">
@@ -1175,6 +1339,128 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ============= QUESTS SCREEN =============
+function QuestsScreen({ onBack }: { onBack: () => void }) {
+  const [quests, setQuests] = useState(loadQuestProgress());
+  const [claimedRewards, setClaimedRewards] = useState<string[]>([]);
+  const dailyQuests = quests.filter(q => q.type === 'daily');
+
+  const handleClaimReward = (questId: string, reward: number) => {
+    const stats = getStats();
+    saveStats({ ...stats, totalXP: (stats.totalXP || 0) + reward });
+    const newClaimedRewards = [...claimedRewards, questId];
+    setClaimedRewards(newClaimedRewards);
+    const updatedQuests = quests.map(q => q.id === questId ? { ...q, progress: q.target } : q);
+    setQuests(updatedQuests);
+    saveQuestProgress(updatedQuests);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4">
+      <div className="max-w-4xl mx-auto">
+        <button onClick={onBack} className="mb-6 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-white">→ بازگشت</button>
+        <div className="text-center mb-8">
+          <div className="text-8xl mb-4">📜</div>
+          <h2 className="text-4xl font-black text-white mb-2">ماموریت‌ها</h2>
+          <p className="text-purple-200 text-lg">ماموریت‌ها را کامل کن و XP دریافت کن!</p>
+        </div>
+        <div className="mb-8">
+          <h3 className="text-2xl font-bold text-white mb-4">🎯 ماموریت‌های روزانه</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {dailyQuests.map(quest => {
+              const isCompleted = quest.progress >= quest.target;
+              const isClaimed = claimedRewards.includes(quest.id);
+              const progressPercent = Math.min(100, (quest.progress / quest.target) * 100);
+              return (
+                <div key={quest.id} className={`rounded-2xl p-6 border transition-all ${isCompleted && !isClaimed ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-400/30' : 'bg-white/10 border-white/20'}`}>
+                  <div className="text-5xl mb-3">{quest.emoji}</div>
+                  <h4 className="text-xl font-bold text-white mb-2">{quest.title}</h4>
+                  <p className="text-purple-200 text-sm mb-3">{quest.description}</p>
+                  <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-3">
+                    <div className="h-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all" style={{ width: `${progressPercent}%` }} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-purple-200 text-sm">{quest.progress}/{quest.target}</span>
+                    <span className="text-yellow-300 font-bold">+{quest.reward} XP</span>
+                  </div>
+                  {isCompleted && !isClaimed && (
+                    <button onClick={() => handleClaimReward(quest.id, quest.reward)} className="w-full mt-3 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg text-white font-bold">دریافت پاداش</button>
+                  )}
+                  {isClaimed && <div className="w-full mt-3 px-4 py-2 bg-white/5 rounded-lg text-center text-green-300 font-bold">✓ دریافت شد</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============= LEADERBOARD SCREEN =============
+function LeaderboardScreen({ onBack }: { onBack: () => void }) {
+  const leaderboard = getLeaderboard();
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4">
+      <div className="max-w-4xl mx-auto">
+        <button onClick={onBack} className="mb-6 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-white">→ بازگشت</button>
+        <div className="text-center mb-8">
+          <div className="text-8xl mb-4">🏆</div>
+          <h2 className="text-4xl font-black text-white mb-2">جدول امتیازات</h2>
+          <p className="text-purple-200 text-lg">بهترین رکوردها</p>
+        </div>
+        {leaderboard.length === 0 ? (
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-12 border border-white/20 text-center">
+            <div className="text-6xl mb-4">🎮</div>
+            <h3 className="text-2xl font-bold text-white mb-2">هنوز رکوردی ثبت نشده</h3>
+            <p className="text-purple-200">اولین نفری باش که رکورد ثبت می‌کنه!</p>
+          </div>
+        ) : (
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
+            <div className="space-y-3">
+              {leaderboard.map((entry, index) => {
+                const medals = ['🥇', '🥈', '🥉'];
+                const medal = index < 3 ? medals[index] : `#${index + 1}`;
+                return (
+                  <div key={index} className={`flex items-center justify-between p-4 rounded-xl ${index === 0 ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-400/30' : index === 1 ? 'bg-gradient-to-r from-gray-400/20 to-slate-500/20 border border-gray-400/30' : index === 2 ? 'bg-gradient-to-r from-orange-600/20 to-amber-600/20 border border-orange-500/30' : 'bg-white/5 border border-white/10'}`}>
+                    <div className="flex items-center gap-4">
+                      <div className="text-4xl">{medal}</div>
+                      <div>
+                        <div className="text-white font-bold text-lg">{entry.name}</div>
+                        <div className="text-purple-200 text-sm">{entry.puzzle}</div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-yellow-300 font-black text-2xl">{entry.score}</div>
+                      <div className="text-purple-200 text-xs">{new Date(entry.date).toLocaleDateString('fa-IR')}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============= MINI-GAMES SCREEN =============
+function MiniGamesScreen({ onBack }: { onBack: () => void }) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4">
+      <div className="max-w-4xl mx-auto">
+        <button onClick={onBack} className="mb-6 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-white">→ بازگشت</button>
+        <div className="text-center mb-8">
+          <div className="text-8xl mb-4">🎮</div>
+          <h2 className="text-4xl font-black text-white mb-2">بازی‌های کوچک</h2>
+          <p className="text-purple-200 text-lg">به زودی...</p>
+        </div>
       </div>
     </div>
   );
