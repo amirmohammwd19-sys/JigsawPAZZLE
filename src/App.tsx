@@ -463,6 +463,8 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
       // Level up sound
       if (newLevel > oldLevel && soundOn) {
         playLevelUp();
+        setToast(`🎉 سطح ${newLevel}!`);
+        setTimeout(() => setToast(null), TOAST_DURATION);
       }
 
       const score = Math.round((10000 / Math.max(1, finalTime)) * (100 / Math.max(1, moves)));
@@ -499,7 +501,7 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
 
       setTimeout(() => setConfetti(false), CONFETTI_DURATION);
     }
-  }, [pieces, done]);
+  }, [pieces, done, soundOn, time, moves, bestStreak, maxCombo, gameMode, difficulty, name]);
 
   // Particles
   useEffect(() => {
@@ -592,50 +594,53 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
     const p2ok = isPieceCorrect(p2);
 
     if (p1ok || p2ok) {
-      setStreak(s => {
-        const ns = s + 1;
-        setBestStreak(b => Math.max(b, ns));
-        if (soundOn && ns > 1) playStreakContinue();
-        
-        // نمایش پیام برای streak های بالا
-        if (ns >= 3) {
-          const streakInfo = getStreakLevel(ns);
-          setToast(`${streakInfo.emoji} Streak ${ns}! ${streakInfo.level}`);
-          setTimeout(() => setToast(null), TOAST_DURATION);
-        }
-        
-        return ns;
-      });
-      setCombo(c => {
-        const nc = c + 1;
-        setMaxCombo(m => Math.max(m, nc));
-        if (nc >= 3 && soundOn) playComboLevel(nc);
-        
-        // نمایش پیام برای combo های بالا
-        if (nc >= 3) {
-          const comboInfo = getComboLevel(nc);
-          setToast(`${comboInfo.emoji} Combo x${nc}! ${comboInfo.level}`);
-          setTimeout(() => setToast(null), TOAST_DURATION);
-        }
-        
-        return nc;
-      });
-      if (soundOn && combo < 3) playCorrect();
+      // افزایش streak
+      const newStreak = streak + 1;
+      setStreak(newStreak);
+      setBestStreak(b => Math.max(b, newStreak));
+      
+      // افزایش combo
+      const newCombo = combo + 1;
+      setCombo(newCombo);
+      setMaxCombo(m => Math.max(m, newCombo));
+      
+      // پخش صداها
+      if (soundOn) {
+        if (newStreak > 1) playStreakContinue();
+        if (newCombo >= 3) playComboLevel(newCombo);
+        if (combo < 3) playCorrect();
+      }
+      
+      // نمایش پیام برای streak های بالا
+      if (newStreak >= 3) {
+        const streakInfo = getStreakLevel(newStreak);
+        setToast(`${streakInfo.emoji} Streak ${newStreak}! ${streakInfo.level}`);
+        setTimeout(() => setToast(null), TOAST_DURATION);
+      }
+      
+      // نمایش پیام برای combo های بالا
+      if (newCombo >= 3) {
+        const comboInfo = getComboLevel(newCombo);
+        setToast(`${comboInfo.emoji} Combo x${newCombo}! ${comboInfo.level}`);
+        setTimeout(() => setToast(null), TOAST_DURATION);
+      }
+      
+      // افکت‌های بصری
       if (p1ok && dims) {
         setLastPlacedId(p1.id);
-        // تعداد ذرات بر اساس streak و combo
-        const particleCount = 25 + (streak * 2) + (combo * 3);
+        const particleCount = 25 + (newStreak * 2) + (newCombo * 3);
         spawnParticles(p1.c * dims.pw + dims.ext + dims.pw / 2, p1.r * dims.ph + dims.ext + dims.ph / 2, particleCount, 'celebration');
         if (soundOn) playPlacement();
       }
       if (p2ok && dims) {
         setLastPlacedId(p2.id);
-        const particleCount = 25 + (streak * 2) + (combo * 3);
+        const particleCount = 25 + (newStreak * 2) + (newCombo * 3);
         spawnParticles(p2.c * dims.pw + dims.ext + dims.pw / 2, p2.r * dims.ph + dims.ext + dims.ph / 2, particleCount, 'celebration');
         if (soundOn) playPlacement();
       }
       setTimeout(() => setLastPlacedId(null), 800);
     } else {
+      // قطع streak و combo
       if (streak > 0 && soundOn) playStreakBreak();
       if (streak >= 5) {
         setToast('💔 Streak قطع شد!');
@@ -817,7 +822,8 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [done, preview, sel, undo, redo, doHint]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [done, preview, sel]);
 
   const ok = getCorrectCount(pieces);
   const prog = calculateProgress(pieces);
