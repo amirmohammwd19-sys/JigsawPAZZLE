@@ -2,11 +2,38 @@ import { GameStats, Theme, PowerUp, TutorialStep } from './types';
 
 // ============= XP & LEVEL SYSTEM =============
 export function calculateXP(moves: number, time: number, streak: number, combo: number): number { 
-  let xp = 100; 
-  if (moves < 50) xp += 200; else if (moves < 100) xp += 100; 
-  if (time < 60) xp += 300; else if (time < 120) xp += 200; 
-  xp += streak * 10; 
-  xp += combo * 15; 
+  let xp = 100; // XP پایه
+  
+  // بونوس حرکات (کمتر = بهتر)
+  if (moves < 30) xp += 400;      // عالی
+  else if (moves < 50) xp += 300; // بسیار خوب
+  else if (moves < 70) xp += 200; // خوب
+  else if (moves < 100) xp += 100; // متوسط
+  
+  // بونوس زمان (سریع‌تر = بهتر)
+  if (time < 30) xp += 600;       // فوق سریع
+  else if (time < 60) xp += 400;  // بسیار سریع
+  else if (time < 120) xp += 300; // سریع
+  else if (time < 180) xp += 200; // متوسط
+  
+  // بونوس Streak (تصاعدی)
+  if (streak >= 30) xp += 2000;   // افسانه‌ای
+  else if (streak >= 25) xp += 1500; // اسطوره‌ای
+  else if (streak >= 20) xp += 1200; // فوق‌العاده
+  else if (streak >= 15) xp += 900;  // عالی
+  else if (streak >= 10) xp += 600;  // بسیار خوب
+  else if (streak >= 7) xp += 400;   // خوب
+  else if (streak >= 5) xp += 250;   // متوسط
+  else if (streak >= 3) xp += 150;   // شروع خوب
+  
+  // بونوس Combo (تصاعدی)
+  if (combo >= 20) xp += 2500;    // افسانه‌ای
+  else if (combo >= 15) xp += 1800; // اسطوره‌ای
+  else if (combo >= 10) xp += 1200; // فوق‌العاده
+  else if (combo >= 7) xp += 800;   // عالی
+  else if (combo >= 5) xp += 500;   // بسیار خوب
+  else if (combo >= 3) xp += 300;   // خوب
+  
   return xp; 
 }
 
@@ -22,12 +49,51 @@ export function getProgressToNextLevel(totalXP: number): number {
 }
 
 export function calculateStreakBonus(streak: number): number { 
-  if (streak >= 20) return 500; 
-  if (streak >= 15) return 300; 
-  if (streak >= 10) return 200; 
-  if (streak >= 5) return 100; 
-  if (streak >= 3) return 50; 
+  // سیستم امتیازدهی تصاعدی برای Streak
+  if (streak >= 30) return 1500; // افسانه‌ای
+  if (streak >= 25) return 1200; // اسطوره‌ای
+  if (streak >= 20) return 1000; // فوق‌العاده
+  if (streak >= 15) return 750;  // عالی
+  if (streak >= 10) return 500;  // بسیار خوب
+  if (streak >= 7) return 300;   // خوب
+  if (streak >= 5) return 200;   // متوسط
+  if (streak >= 3) return 100;   // شروع خوب
   return 0; 
+}
+
+export function calculateComboBonus(combo: number): number {
+  // سیستم امتیازدهی تصاعدی برای Combo
+  if (combo >= 20) return 2000; // افسانه‌ای
+  if (combo >= 15) return 1500; // اسطوره‌ای
+  if (combo >= 10) return 1000; // فوق‌العاده
+  if (combo >= 7) return 600;   // عالی
+  if (combo >= 5) return 400;   // بسیار خوب
+  if (combo >= 3) return 200;   // خوب
+  return 0;
+}
+
+// تابع کمکی برای دریافت اطلاعات سطح Streak
+export function getStreakLevel(streak: number): { level: string; emoji: string; color: string } {
+  if (streak >= 30) return { level: 'افسانه‌ای', emoji: '👑', color: 'from-yellow-400 to-orange-500' };
+  if (streak >= 25) return { level: 'اسطوره‌ای', emoji: '🌟', color: 'from-purple-400 to-pink-500' };
+  if (streak >= 20) return { level: 'فوق‌العاده', emoji: '💎', color: 'from-blue-400 to-purple-500' };
+  if (streak >= 15) return { level: 'عالی', emoji: '🔥', color: 'from-red-400 to-orange-500' };
+  if (streak >= 10) return { level: 'بسیار خوب', emoji: '⚡', color: 'from-yellow-400 to-red-500' };
+  if (streak >= 7) return { level: 'خوب', emoji: '✨', color: 'from-green-400 to-blue-500' };
+  if (streak >= 5) return { level: 'متوسط', emoji: '💫', color: 'from-blue-400 to-cyan-500' };
+  if (streak >= 3) return { level: 'شروع خوب', emoji: '🌟', color: 'from-cyan-400 to-blue-500' };
+  return { level: 'معمولی', emoji: '⭐', color: 'from-gray-400 to-gray-500' };
+}
+
+// تابع کمکی برای دریافت اطلاعات سطح Combo
+export function getComboLevel(combo: number): { level: string; emoji: string; color: string } {
+  if (combo >= 20) return { level: 'افسانه‌ای', emoji: '👑', color: 'from-yellow-400 to-orange-500' };
+  if (combo >= 15) return { level: 'اسطوره‌ای', emoji: '🌟', color: 'from-purple-400 to-pink-500' };
+  if (combo >= 10) return { level: 'فوق‌العاده', emoji: '💎', color: 'from-blue-400 to-purple-500' };
+  if (combo >= 7) return { level: 'عالی', emoji: '🔥', color: 'from-red-400 to-orange-500' };
+  if (combo >= 5) return { level: 'بسیار خوب', emoji: '⚡', color: 'from-yellow-400 to-red-500' };
+  if (combo >= 3) return { level: 'خوب', emoji: '✨', color: 'from-green-400 to-blue-500' };
+  return { level: 'معمولی', emoji: '⭐', color: 'from-gray-400 to-gray-500' };
 }
 
 export function calculateMoveEfficiency(moves: number, total: number): number { 

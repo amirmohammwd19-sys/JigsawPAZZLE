@@ -11,7 +11,7 @@ import {
 import { getStats, saveStats, getRecord, saveRecord, getLeaderboard, saveToLeaderboard, saveGame, clearAutoSave, exportSaveData, importSaveData } from './storage';
 import { checkAchievements, getAchievementById, ACHIEVEMENTS } from './achievements';
 import { DIFFICULTIES, GAME_MODES, PUZZLES, VERSION, MAX_HISTORY, TIME_ATTACK_DURATION, AUTO_SOLVE_INTERVAL, PARTICLE_COUNT, TOAST_DURATION, HINT_DURATION, CONFETTI_DURATION, AUTO_SAVE_INTERVAL } from './config';
-import { calculateXP, calculateLevel, getProgressToNextLevel, POWER_UPS, getDailyChallenge, hasCompletedDailyChallenge, completeDailyChallenge, calculateStreakBonus, calculateMoveEfficiency, calculateTimeBonus, generateShareResult, copyToClipboard, hasSeenTutorial, markTutorialAsSeen, TUTORIAL_STEPS, THEMES, getCurrentTheme, setTheme, getUnlockedThemes, canUsePowerUp, markPowerUpUsed } from './features';
+import { calculateXP, calculateLevel, getProgressToNextLevel, POWER_UPS, getDailyChallenge, hasCompletedDailyChallenge, completeDailyChallenge, calculateStreakBonus, calculateComboBonus, calculateMoveEfficiency, calculateTimeBonus, generateShareResult, copyToClipboard, hasSeenTutorial, markTutorialAsSeen, TUTORIAL_STEPS, THEMES, getCurrentTheme, setTheme, getUnlockedThemes, canUsePowerUp, markPowerUpUsed, getStreakLevel, getComboLevel } from './features';
 import { getDailyRewards, getLoginStreak, claimDailyReward, loadQuestProgress, saveQuestProgress } from './gameSystems';
 
 type Screen = 'menu' | 'game' | 'stats' | 'achievements' | 'tutorial' | 'daily' | 'powerups' | 'themes' | 'settings' | 'quests' | 'leaderboard' | 'minigames';
@@ -432,8 +432,9 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
       const stats = getStats();
       const earnedXP = calculateXP(moves, finalTime, bestStreak, maxCombo);
       const streakBonus = calculateStreakBonus(bestStreak);
+      const comboBonus = calculateComboBonus(maxCombo);
       const timeBonus = calculateTimeBonus(finalTime, pieces.length);
-      const totalEarnedXP = earnedXP + streakBonus + timeBonus;
+      const totalEarnedXP = earnedXP + streakBonus + comboBonus + timeBonus;
       const efficiency = calculateMoveEfficiency(moves, pieces.length);
 
       const oldLevel = calculateLevel(stats.totalXP || 0);
@@ -588,28 +589,51 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
         const ns = s + 1;
         setBestStreak(b => Math.max(b, ns));
         if (soundOn && ns > 1) playStreakContinue();
+        
+        // نمایش پیام برای streak های بالا
+        if (ns >= 3) {
+          const streakInfo = getStreakLevel(ns);
+          setToast(`${streakInfo.emoji} Streak ${ns}! ${streakInfo.level}`);
+          setTimeout(() => setToast(null), TOAST_DURATION);
+        }
+        
         return ns;
       });
       setCombo(c => {
         const nc = c + 1;
         setMaxCombo(m => Math.max(m, nc));
         if (nc >= 3 && soundOn) playComboLevel(nc);
+        
+        // نمایش پیام برای combo های بالا
+        if (nc >= 3) {
+          const comboInfo = getComboLevel(nc);
+          setToast(`${comboInfo.emoji} Combo x${nc}! ${comboInfo.level}`);
+          setTimeout(() => setToast(null), TOAST_DURATION);
+        }
+        
         return nc;
       });
       if (soundOn && combo < 3) playCorrect();
       if (p1ok && dims) {
         setLastPlacedId(p1.id);
-        spawnParticles(p1.c * dims.pw + dims.ext + dims.pw / 2, p1.r * dims.ph + dims.ext + dims.ph / 2, 25, 'celebration');
+        // تعداد ذرات بر اساس streak و combo
+        const particleCount = 25 + (streak * 2) + (combo * 3);
+        spawnParticles(p1.c * dims.pw + dims.ext + dims.pw / 2, p1.r * dims.ph + dims.ext + dims.ph / 2, particleCount, 'celebration');
         if (soundOn) playPlacement();
       }
       if (p2ok && dims) {
         setLastPlacedId(p2.id);
-        spawnParticles(p2.c * dims.pw + dims.ext + dims.pw / 2, p2.r * dims.ph + dims.ext + dims.ph / 2, 25, 'celebration');
+        const particleCount = 25 + (streak * 2) + (combo * 3);
+        spawnParticles(p2.c * dims.pw + dims.ext + dims.pw / 2, p2.r * dims.ph + dims.ext + dims.ph / 2, particleCount, 'celebration');
         if (soundOn) playPlacement();
       }
       setTimeout(() => setLastPlacedId(null), 800);
     } else {
       if (streak > 0 && soundOn) playStreakBreak();
+      if (streak >= 5) {
+        setToast('💔 Streak قطع شد!');
+        setTimeout(() => setToast(null), TOAST_DURATION);
+      }
       setStreak(0);
       setCombo(0);
       if (soundOn) playSwap();
@@ -871,18 +895,26 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
               <span className="text-green-300 text-xs">✅</span>
               <span className="text-white font-mono text-xs">{ok}/{config.total}</span>
             </div>
-            {streak >= 2 && (
-              <div className="flex items-center gap-1 bg-gradient-to-r from-orange-500/30 to-red-500/30 rounded-lg px-2 py-1 border border-orange-400/30">
-                <span className="text-orange-300 text-xs">🔥</span>
-                <span className="text-white font-mono text-xs font-bold">{streak}</span>
-              </div>
-            )}
-            {combo >= 3 && (
-              <div className="flex items-center gap-1 bg-gradient-to-r from-purple-500/30 to-pink-500/30 rounded-lg px-2 py-1 border border-purple-400/30">
-                <span className="text-purple-300 text-xs">💎</span>
-                <span className="text-white font-mono text-xs font-bold">x{combo}</span>
-              </div>
-            )}
+            {streak >= 2 && (() => {
+              const streakInfo = getStreakLevel(streak);
+              return (
+                <div className={`flex items-center gap-1 bg-gradient-to-r ${streakInfo.color} rounded-lg px-3 py-1.5 border border-white/30 shadow-lg ${streak >= 10 ? 'animate-pulse' : ''}`}>
+                  <span className="text-lg animate-float">{streakInfo.emoji}</span>
+                  <span className="text-white font-mono text-sm font-bold">{streak}</span>
+                  {streak >= 5 && <span className="text-white text-xs font-bold">{streakInfo.level}</span>}
+                </div>
+              );
+            })()}
+            {combo >= 3 && (() => {
+              const comboInfo = getComboLevel(combo);
+              return (
+                <div className={`flex items-center gap-1 bg-gradient-to-r ${comboInfo.color} rounded-lg px-3 py-1.5 border border-white/30 shadow-lg ${combo >= 10 ? 'animate-pulse' : ''}`}>
+                  <span className="text-lg animate-float">{comboInfo.emoji}</span>
+                  <span className="text-white font-mono text-sm font-bold">x{combo}</span>
+                  {combo >= 5 && <span className="text-white text-xs font-bold">{comboInfo.level}</span>}
+                </div>
+              );
+            })()}
             <button 
               onClick={() => setPreview(true)}
               className="px-2 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-white text-xs transition-all"
@@ -1149,17 +1181,83 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
               </div>
             </div>
 
-            {bestStreak >= 3 && (
-              <div className="bg-gradient-to-r from-orange-500/20 to-red-500/20 rounded-xl p-3 mb-4 border border-orange-400/30 animate-scale-in animate-glow" style={{ animationDelay: '0.2s' }}>
-                <div className="text-orange-300 text-lg font-bold animate-pulse">🔥 بهترین Streak: {bestStreak}</div>
-              </div>
-            )}
+            {bestStreak >= 3 && (() => {
+              const streakInfo = getStreakLevel(bestStreak);
+              const bonus = calculateStreakBonus(bestStreak);
+              return (
+                <div className={`bg-gradient-to-r ${streakInfo.color} rounded-xl p-4 mb-4 border-2 border-white/40 shadow-2xl animate-scale-in animate-glow`} style={{ animationDelay: '0.3s' }}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-3xl animate-float">{streakInfo.emoji}</span>
+                        <div>
+                          <div className="text-white text-lg font-bold">بهترین Streak: {bestStreak}</div>
+                          <div className="text-white/90 text-sm font-semibold">{streakInfo.level}</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-white text-3xl font-black">+{bonus}</div>
+                      <div className="text-white/80 text-xs">XP Bonus</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
-            {maxCombo >= 3 && (
-              <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 rounded-xl p-3 mb-4 border border-purple-400/30 animate-scale-in animate-glow" style={{ animationDelay: '0.25s' }}>
-                <div className="text-purple-300 text-lg font-bold animate-pulse">💎 بیشترین Combo: x{maxCombo}</div>
-              </div>
-            )}
+            {maxCombo >= 3 && (() => {
+              const comboInfo = getComboLevel(maxCombo);
+              const bonus = calculateComboBonus(maxCombo);
+              return (
+                <div className={`bg-gradient-to-r ${comboInfo.color} rounded-xl p-4 mb-4 border-2 border-white/40 shadow-2xl animate-scale-in animate-glow`} style={{ animationDelay: '0.4s' }}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-3xl animate-float">{comboInfo.emoji}</span>
+                        <div>
+                          <div className="text-white text-lg font-bold">بیشترین Combo: x{maxCombo}</div>
+                          <div className="text-white/90 text-sm font-semibold">{comboInfo.level}</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-white text-3xl font-black">+{bonus}</div>
+                      <div className="text-white/80 text-xs">XP Bonus</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {bestStreak >= 3 && (() => {
+              const streakInfo = getStreakLevel(bestStreak);
+              return (
+                <div className={`bg-gradient-to-r ${streakInfo.color} rounded-xl p-4 mb-4 border border-white/30 animate-scale-in animate-glow`} style={{ animationDelay: '0.3s' }}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-white text-lg font-bold">{streakInfo.emoji} بهترین Streak: {bestStreak}</div>
+                      <div className="text-white/80 text-sm">{streakInfo.level}</div>
+                    </div>
+                    <div className="text-white text-2xl font-black">+{calculateStreakBonus(bestStreak)}</div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {maxCombo >= 3 && (() => {
+              const comboInfo = getComboLevel(maxCombo);
+              return (
+                <div className={`bg-gradient-to-r ${comboInfo.color} rounded-xl p-4 mb-4 border border-white/30 animate-scale-in animate-glow`} style={{ animationDelay: '0.4s' }}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="text-white text-lg font-bold">{comboInfo.emoji} بیشترین Combo: x{maxCombo}</div>
+                      <div className="text-white/80 text-sm">{comboInfo.level}</div>
+                    </div>
+                    <div className="text-white text-2xl font-black">+{calculateComboBonus(maxCombo)}</div>
+                  </div>
+                </div>
+              );
+            })()}
 
             {record && (
               <div className="bg-white/5 rounded-xl p-3 mb-4 border border-white/10 animate-scale-in" style={{ animationDelay: '0.3s' }}>
