@@ -60,10 +60,45 @@ export function getLeaderboard(): LeaderboardEntry[] {
 export function saveToLeaderboard(entry: LeaderboardEntry): void { 
   try { 
     const lb = getLeaderboard(); 
-    lb.push(entry); 
+    
+    // Check if player already has a score for this puzzle
+    const existingIndex = lb.findIndex(e => e.name === entry.name && e.puzzle === entry.puzzle);
+    
+    if (existingIndex >= 0) {
+      // Update if new score is better
+      if (entry.score > lb[existingIndex].score) {
+        lb[existingIndex] = entry;
+      }
+    } else {
+      // Add new entry
+      lb.push(entry);
+    }
+    
+    // Sort by score (highest first)
     lb.sort((a, b) => b.score - a.score); 
-    localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(lb.slice(0, 10))); 
+    
+    // Keep only top 20 entries
+    localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(lb.slice(0, 20))); 
   } catch {} 
+}
+
+export function getLeaderboardByPuzzle(puzzleName: string): LeaderboardEntry[] {
+  try {
+    const lb = getLeaderboard();
+    return lb.filter(e => e.puzzle === puzzleName).slice(0, 10);
+  } catch {
+    return [];
+  }
+}
+
+export function getPlayerRank(playerName: string, puzzleName?: string): number {
+  try {
+    const lb = puzzleName ? getLeaderboardByPuzzle(puzzleName) : getLeaderboard();
+    const index = lb.findIndex(e => e.name === playerName);
+    return index >= 0 ? index + 1 : -1;
+  } catch {
+    return -1;
+  }
 }
 
 export interface GameSave { puzzleName: string; pieces: any[]; moves: number; time: number; date: string; }

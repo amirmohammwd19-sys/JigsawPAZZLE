@@ -1,9 +1,25 @@
 let audioCtx: AudioContext | null = null;
 let masterVolume = 1.0;
+let audioEnabled = true;
 
 function getCtx(): AudioContext { 
-  if (!audioCtx) audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)(); 
+  if (!audioCtx) {
+    try {
+      audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    } catch (e) {
+      console.warn('AudioContext not supported');
+      return null as any;
+    }
+  }
   return audioCtx; 
+}
+
+export function setAudioEnabled(enabled: boolean): void {
+  audioEnabled = enabled;
+}
+
+export function isAudioEnabled(): boolean {
+  return audioEnabled;
 }
 
 export function setMasterVolume(v: number): void { 
@@ -15,8 +31,17 @@ export function getMasterVolume(): number {
 }
 
 function createSmoothTone(frequency: number, duration: number, type: OscillatorType = 'sine', volume: number = 0.05, attack: number = 0.02, release: number = 0.1): void {
+  if (!audioEnabled) return;
+  
   try {
     const ctx = getCtx();
+    if (!ctx) return;
+    
+    // Resume audio context if suspended
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+    
     const oscillator = ctx.createOscillator();
     const gainNode = ctx.createGain();
     oscillator.connect(gainNode);
@@ -30,7 +55,9 @@ function createSmoothTone(frequency: number, duration: number, type: OscillatorT
     gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
     oscillator.start(ctx.currentTime);
     oscillator.stop(ctx.currentTime + duration);
-  } catch {}
+  } catch (e) {
+    console.warn('Audio playback failed:', e);
+  }
 }
 
 export function beep(frequency: number, duration: number, type: OscillatorType = 'sine', volume: number = 0.06): void {

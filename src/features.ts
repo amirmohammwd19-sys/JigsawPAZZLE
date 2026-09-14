@@ -71,7 +71,38 @@ export const POWER_UPS: PowerUp[] = [
   { id: 'auto_solve', name: 'حل خودکار', emoji: '🤖', desc: '5 تکه را خودکار حل کن', cost: 300 },
   { id: 'time_bonus', name: 'زمان اضافی', emoji: '⏰', desc: '30 ثانیه زمان اضافی دریافت کن', cost: 125 },
   { id: 'streak_protect', name: 'محافظ Streak', emoji: '🛡️', desc: 'Streak خود را برای 3 حرکت حفظ کن', cost: 175 },
+  { id: 'hint_master', name: 'استاد راهنما', emoji: '🎓', desc: '5 راهنمای رایگان دریافت کن', cost: 150 },
+  { id: 'speed_boost', name: 'افزایش سرعت', emoji: '⚡', desc: 'سرعت انیمیشن‌ها را 2 برابر کن', cost: 100 },
 ];
+
+// Power-up usage tracking
+export function getUsedPowerUps(): string[] {
+  try {
+    const data = localStorage.getItem('usedPowerUps');
+    return data ? JSON.parse(data) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function markPowerUpUsed(powerUpId: string): void {
+  try {
+    const used = getUsedPowerUps();
+    used.push(powerUpId);
+    localStorage.setItem('usedPowerUps', JSON.stringify(used));
+  } catch {}
+}
+
+export function canUsePowerUp(powerUpId: string): boolean {
+  const used = getUsedPowerUps();
+  return !used.includes(powerUpId);
+}
+
+export function resetPowerUps(): void {
+  try {
+    localStorage.removeItem('usedPowerUps');
+  } catch {}
+}
 
 // ============= THEMES =============
 export const THEMES: Theme[] = [

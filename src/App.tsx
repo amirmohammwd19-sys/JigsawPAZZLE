@@ -11,7 +11,7 @@ import {
 import { getStats, saveStats, getRecord, saveRecord, getLeaderboard, saveToLeaderboard, saveGame, clearAutoSave, exportSaveData, importSaveData } from './storage';
 import { checkAchievements, getAchievementById, ACHIEVEMENTS } from './achievements';
 import { DIFFICULTIES, GAME_MODES, PUZZLES, VERSION, MAX_HISTORY, TIME_ATTACK_DURATION, AUTO_SOLVE_INTERVAL, PARTICLE_COUNT, TOAST_DURATION, HINT_DURATION, CONFETTI_DURATION, AUTO_SAVE_INTERVAL } from './config';
-import { calculateXP, calculateLevel, getProgressToNextLevel, POWER_UPS, getDailyChallenge, hasCompletedDailyChallenge, completeDailyChallenge, calculateStreakBonus, calculateMoveEfficiency, calculateTimeBonus, generateShareResult, copyToClipboard, hasSeenTutorial, markTutorialAsSeen, TUTORIAL_STEPS, THEMES, getCurrentTheme, setTheme, getUnlockedThemes } from './features';
+import { calculateXP, calculateLevel, getProgressToNextLevel, POWER_UPS, getDailyChallenge, hasCompletedDailyChallenge, completeDailyChallenge, calculateStreakBonus, calculateMoveEfficiency, calculateTimeBonus, generateShareResult, copyToClipboard, hasSeenTutorial, markTutorialAsSeen, TUTORIAL_STEPS, THEMES, getCurrentTheme, setTheme, getUnlockedThemes, canUsePowerUp, markPowerUpUsed } from './features';
 import { getDailyRewards, getLoginStreak, claimDailyReward, loadQuestProgress, saveQuestProgress } from './gameSystems';
 
 type Screen = 'menu' | 'game' | 'stats' | 'achievements' | 'tutorial' | 'daily' | 'powerups' | 'themes' | 'settings' | 'quests' | 'leaderboard' | 'minigames';
@@ -461,11 +461,27 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
       saveToLeaderboard({ name: 'Player', score, date: new Date().toISOString(), puzzle: name });
       clearAutoSave();
 
-      const result = checkAchievements(stats.gamesPlayed + 1, finalTime, moves, bestStreak, maxCombo, String(gameMode), String(difficulty));
+      const loginStreak = getLoginStreak();
+      const result = checkAchievements(
+        stats.gamesPlayed + 1, 
+        finalTime, 
+        moves, 
+        bestStreak, 
+        maxCombo, 
+        String(gameMode), 
+        String(difficulty),
+        newTotalXP,
+        loginStreak
+      );
+      
       if (result.newlyUnlocked.length > 0) {
         if (soundOn) playAchievement();
-        setToast(`🏆 ${result.newlyUnlocked.length} Achievement جدید!`);
-        setTimeout(() => setToast(null), TOAST_DURATION);
+        const achievementNames = result.newlyUnlocked.map(id => {
+          const ach = ACHIEVEMENTS.find(a => a.id === id);
+          return ach ? `${ach.emoji} ${ach.title}` : id;
+        }).join(', ');
+        setToast(`🏆 ${result.newlyUnlocked.length} Achievement جدید: ${achievementNames}`);
+        setTimeout(() => setToast(null), TOAST_DURATION * 2);
       }
 
       if (isNewRecord) {
@@ -1472,53 +1488,86 @@ function DailyChallengeScreen({ onBack, onStart }: { onBack: () => void; onStart
 function PowerUpsScreen({ onBack }: { onBack: () => void }) {
   const stats = getStats();
   const level = calculateLevel(stats.totalXP || 0);
+  const [purchasedItems, setPurchasedItems] = useState<string[]>([]);
+
+  const handlePurchase = (powerUpId: string, cost: number, name: string) => {
+    if ((stats.totalXP || 0) >= cost) {
+      // Deduct XP
+      const newStats = { ...stats, totalXP: (stats.totalXP || 0) - cost };
+      saveStats(newStats);
+      
+      // Mark as purchased
+      markPowerUpUsed(powerUpId);
+      setPurchasedItems([...purchasedItems, powerUpId]);
+      
+      // Play sound
+      playPowerUp();
+      
+      // Show success message
+      alert(`✅ ${name} با موفقیت خریداری شد!`);
+    } else {
+      playError();
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4">
       <div className="max-w-4xl mx-auto">
         <button onClick={onBack} className="mb-6 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all">→ بازگشت</button>
         <div className="text-center mb-8">
-          <div className="text-8xl mb-4">✨</div>
-          <h2 className="text-4xl font-black text-white mb-2">Power-ups</h2>
+          <div className="text-8xl mb-4 animate-float">✨</div>
+          <h2 className="text-4xl font-black text-white mb-2 animate-pop-in">Power-ups</h2>
+          <p className="text-purple-200">قدرت‌های ویژه برای بهبود بازی شما</p>
         </div>
 
-        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 mb-6">
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 mb-6 animate-scale-in">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <div className="text-3xl font-black text-yellow-300">{stats.totalXP || 0} XP</div>
+              <div className="text-3xl font-black text-yellow-300 animate-pulse">{stats.totalXP || 0} XP</div>
               <div className="text-purple-200 text-sm">سطح {level}</div>
             </div>
-            <div className="text-6xl">💎</div>
+            <div className="text-6xl animate-float">💎</div>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {POWER_UPS.map(powerUp => {
+          {POWER_UPS.map((powerUp, index) => {
             const canAfford = (stats.totalXP || 0) >= powerUp.cost;
+            const isPurchased = purchasedItems.includes(powerUp.id);
+            
             return (
-              <div key={powerUp.id} className={`rounded-2xl p-6 border transition-all ${canAfford ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-400/30' : 'bg-white/5 border-white/10 opacity-50'}`}>
+              <div 
+                key={powerUp.id} 
+                className={`rounded-2xl p-6 border transition-all card-hover animate-scale-in ${
+                  isPurchased 
+                    ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-400/30' 
+                    : canAfford 
+                    ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-400/30' 
+                    : 'bg-white/5 border-white/10 opacity-50'
+                }`}
+                style={{ animationDelay: `${index * 0.1}s` }}
+              >
                 <div className="flex items-start gap-4">
-                  <div className="text-5xl">{powerUp.emoji}</div>
+                  <div className={`text-5xl ${isPurchased ? 'animate-float' : ''}`}>{powerUp.emoji}</div>
                   <div className="flex-1">
                     <h3 className="text-xl font-bold text-white mb-1">{powerUp.name}</h3>
                     <p className="text-purple-200 text-sm mb-3">{powerUp.desc}</p>
                     <div className="flex items-center justify-between">
                       <span className="text-yellow-300 font-bold">{powerUp.cost} XP</span>
-                      {canAfford ? (
+                      {isPurchased ? (
+                        <div className="px-4 py-2 bg-green-500/30 rounded-lg text-green-300 text-sm font-bold">
+                          ✓ خریداری شد
+                        </div>
+                      ) : canAfford ? (
                         <button 
-                          onClick={() => {
-                            playPowerUp();
-                            alert(`✅ ${powerUp.name} خریداری شد!`);
-                          }}
-                          className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg text-white text-sm font-bold hover:scale-105 transition-transform"
+                          onClick={() => handlePurchase(powerUp.id, powerUp.cost, powerUp.name)}
+                          className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg text-white text-sm font-bold hover:scale-105 transition-transform animate-glow"
                         >
                           خرید
                         </button>
                       ) : (
                         <button
-                          onClick={() => {
-                            playError();
-                          }}
+                          onClick={() => playError()}
                           className="px-4 py-2 bg-red-500/30 rounded-lg text-red-300 text-sm font-bold cursor-not-allowed"
                         >
                           XP کافی نیست
@@ -1700,40 +1749,92 @@ function QuestsScreen({ onBack }: { onBack: () => void }) {
 
 function LeaderboardScreen({ onBack }: { onBack: () => void }) {
   const leaderboard = getLeaderboard();
+  const [filter, setFilter] = useState<'all' | string>('all');
+
+  const filteredLeaderboard = filter === 'all' 
+    ? leaderboard 
+    : leaderboard.filter(e => e.puzzle === filter);
+
+  const uniquePuzzles = Array.from(new Set(leaderboard.map(e => e.puzzle)));
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4">
       <div className="max-w-4xl mx-auto">
         <button onClick={onBack} className="mb-6 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all">→ بازگشت</button>
         <div className="text-center mb-8">
-          <div className="text-8xl mb-4">🏆</div>
-          <h2 className="text-4xl font-black text-white mb-2">جدول امتیازات</h2>
+          <div className="text-8xl mb-4 animate-float">🏆</div>
+          <h2 className="text-4xl font-black text-white mb-2 animate-pop-in">جدول امتیازات</h2>
           <p className="text-purple-200 text-lg">بهترین رکوردها</p>
         </div>
 
-        {leaderboard.length === 0 ? (
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-12 border border-white/20 text-center">
-            <div className="text-6xl mb-4">🎮</div>
+        {/* Filter */}
+        {uniquePuzzles.length > 0 && (
+          <div className="mb-6 flex flex-wrap gap-2 justify-center">
+            <button
+              onClick={() => setFilter('all')}
+              className={`px-4 py-2 rounded-xl font-bold transition-all ${
+                filter === 'all' 
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
+                  : 'bg-white/10 text-white hover:bg-white/20'
+              }`}
+            >
+              همه
+            </button>
+            {uniquePuzzles.map(puzzle => (
+              <button
+                key={puzzle}
+                onClick={() => setFilter(puzzle)}
+                className={`px-4 py-2 rounded-xl font-bold transition-all ${
+                  filter === puzzle 
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' 
+                    : 'bg-white/10 text-white hover:bg-white/20'
+                }`}
+              >
+                {puzzle}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {filteredLeaderboard.length === 0 ? (
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-12 border border-white/20 text-center animate-scale-in">
+            <div className="text-6xl mb-4 animate-float">🎮</div>
             <h3 className="text-2xl font-bold text-white mb-2">هنوز رکوردی ثبت نشده</h3>
             <p className="text-purple-200">اولین نفری باش که رکورد ثبت می‌کنه!</p>
           </div>
         ) : (
-          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20">
+          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 animate-scale-in">
             <div className="space-y-3">
-              {leaderboard.map((entry, index) => {
+              {filteredLeaderboard.map((entry, index) => {
                 const medals = ['🥇', '🥈', '🥉'];
                 const medal = index < 3 ? medals[index] : `#${index + 1}`;
+                const isFirst = index === 0;
+                
                 return (
-                  <div key={index} className={`flex items-center justify-between p-4 rounded-xl transition-all ${index === 0 ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-400/30' : index === 1 ? 'bg-gradient-to-r from-gray-400/20 to-slate-500/20 border border-gray-400/30' : index === 2 ? 'bg-gradient-to-r from-orange-600/20 to-amber-600/20 border border-orange-500/30' : 'bg-white/5 border border-white/10'}`}>
+                  <div 
+                    key={index} 
+                    className={`flex items-center justify-between p-4 rounded-xl transition-all card-hover animate-scale-in ${
+                      isFirst 
+                        ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-400/30 animate-glow' 
+                        : index === 1 
+                        ? 'bg-gradient-to-r from-gray-400/20 to-slate-500/20 border border-gray-400/30' 
+                        : index === 2 
+                        ? 'bg-gradient-to-r from-orange-600/20 to-amber-600/20 border border-orange-500/30' 
+                        : 'bg-white/5 border border-white/10'
+                    }`}
+                    style={{ animationDelay: `${index * 0.1}s` }}
+                  >
                     <div className="flex items-center gap-4">
-                      <div className="text-4xl">{medal}</div>
+                      <div className={`text-4xl ${isFirst ? 'animate-float' : ''}`}>{medal}</div>
                       <div>
                         <div className="text-white font-bold text-lg">{entry.name}</div>
                         <div className="text-purple-200 text-sm">{entry.puzzle}</div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-yellow-300 font-black text-2xl">{entry.score}</div>
+                      <div className={`font-black text-2xl ${isFirst ? 'text-yellow-300 animate-pulse' : 'text-yellow-300'}`}>
+                        {entry.score}
+                      </div>
                       <div className="text-purple-200 text-xs">{new Date(entry.date).toLocaleDateString('fa-IR')}</div>
                     </div>
                   </div>
@@ -1748,14 +1849,131 @@ function LeaderboardScreen({ onBack }: { onBack: () => void }) {
 }
 
 function MiniGamesScreen({ onBack }: { onBack: () => void }) {
+  const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  const [memoryCards, setMemoryCards] = useState<number[]>([]);
+  const [flippedCards, setFlippedCards] = useState<number[]>([]);
+  const [matchedCards, setMatchedCards] = useState<number[]>([]);
+  const [moves, setMoves] = useState(0);
+
+  const games = [
+    { id: 'memory', name: 'بازی حافظه', emoji: '🧠', desc: 'کارت‌های مشابه را پیدا کن' },
+    { id: 'quick_math', name: 'ریاضی سریع', emoji: '🔢', desc: 'محاسبات ریاضی سریع' },
+    { id: 'color_match', name: 'تطبیق رنگ', emoji: '🎨', desc: 'رنگ‌های مشابه را پیدا کن' },
+  ];
+
+  const startMemoryGame = () => {
+    const cards = [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6];
+    setMemoryCards(cards.sort(() => Math.random() - 0.5));
+    setFlippedCards([]);
+    setMatchedCards([]);
+    setMoves(0);
+    setSelectedGame('memory');
+  };
+
+  const handleCardClick = (index: number) => {
+    if (flippedCards.length === 2 || flippedCards.includes(index) || matchedCards.includes(index)) {
+      return;
+    }
+
+    const newFlipped = [...flippedCards, index];
+    setFlippedCards(newFlipped);
+
+    if (newFlipped.length === 2) {
+      setMoves(m => m + 1);
+      const [first, second] = newFlipped;
+      
+      if (memoryCards[first] === memoryCards[second]) {
+        setTimeout(() => {
+          setMatchedCards([...matchedCards, first, second]);
+          setFlippedCards([]);
+          
+          if (matchedCards.length + 2 === memoryCards.length) {
+            setTimeout(() => {
+              alert(`🎉 تبریک! بازی را با ${moves + 1} حرکت کامل کردی!`);
+              setSelectedGame(null);
+            }, 500);
+          }
+        }, 500);
+      } else {
+        setTimeout(() => {
+          setFlippedCards([]);
+        }, 1000);
+      }
+    }
+  };
+
+  if (selectedGame === 'memory') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4">
+        <div className="max-w-4xl mx-auto">
+          <button onClick={() => setSelectedGame(null)} className="mb-6 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all">→ بازگشت</button>
+          
+          <div className="text-center mb-8">
+            <div className="text-6xl mb-4 animate-float">🧠</div>
+            <h2 className="text-3xl font-black text-white mb-2">بازی حافظه</h2>
+            <div className="flex justify-center gap-4 text-purple-200">
+              <span>حرکات: {moves}</span>
+              <span>جفت‌ها: {matchedCards.length / 2}/{memoryCards.length / 2}</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-4 gap-4 max-w-2xl mx-auto">
+            {memoryCards.map((card, index) => {
+              const isFlipped = flippedCards.includes(index);
+              const isMatched = matchedCards.includes(index);
+              
+              return (
+                <div
+                  key={index}
+                  onClick={() => handleCardClick(index)}
+                  className={`aspect-square rounded-xl cursor-pointer transition-all transform hover:scale-105 ${
+                    isFlipped || isMatched
+                      ? 'bg-gradient-to-br from-purple-500 to-pink-500'
+                      : 'bg-white/10 hover:bg-white/20'
+                  } ${isMatched ? 'opacity-50' : ''}`}
+                >
+                  {(isFlipped || isMatched) && (
+                    <div className="w-full h-full flex items-center justify-center text-4xl">
+                      {card}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4">
       <div className="max-w-4xl mx-auto">
         <button onClick={onBack} className="mb-6 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all">→ بازگشت</button>
         <div className="text-center mb-8">
-          <div className="text-8xl mb-4">🎮</div>
-          <h2 className="text-4xl font-black text-white mb-2">بازی‌های کوچک</h2>
-          <p className="text-purple-200 text-lg">به زودی...</p>
+          <div className="text-8xl mb-4 animate-float">🎮</div>
+          <h2 className="text-4xl font-black text-white mb-2 animate-pop-in">بازی‌های کوچک</h2>
+          <p className="text-purple-200 text-lg">بازی‌های سرگرم‌کننده برای تقویت مهارت‌ها</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {games.map((game, index) => (
+            <div
+              key={game.id}
+              className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 card-hover animate-scale-in"
+              style={{ animationDelay: `${index * 0.1}s` }}
+            >
+              <div className="text-5xl mb-4 animate-float">{game.emoji}</div>
+              <h3 className="text-xl font-bold text-white mb-2">{game.name}</h3>
+              <p className="text-purple-200 text-sm mb-4">{game.desc}</p>
+              <button
+                onClick={() => game.id === 'memory' ? startMemoryGame() : alert('به زودی...')}
+                className="w-full px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-400 hover:to-pink-400 rounded-xl text-white font-bold transition-all transform hover:scale-105"
+              >
+                شروع بازی
+              </button>
+            </div>
+          ))}
         </div>
       </div>
     </div>
