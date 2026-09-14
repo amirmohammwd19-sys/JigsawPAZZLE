@@ -1,4 +1,4 @@
-export const VERSION = '15.0';
+export const VERSION = '16.0 Ultimate';
 export const MAX_HISTORY = 15;
 export const TIME_ATTACK_DURATION = 60;
 export const AUTO_SOLVE_INTERVAL = 500;

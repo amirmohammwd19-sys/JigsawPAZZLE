@@ -11,7 +11,13 @@ import {
 import { getStats, saveStats, getRecord, saveRecord, getLeaderboard, saveToLeaderboard, saveGame, clearAutoSave, exportSaveData, importSaveData } from './storage';
 import { checkAchievements, getAchievementById, ACHIEVEMENTS } from './achievements';
 import { DIFFICULTIES, GAME_MODES, PUZZLES, VERSION, MAX_HISTORY, TIME_ATTACK_DURATION, AUTO_SOLVE_INTERVAL, PARTICLE_COUNT, TOAST_DURATION, HINT_DURATION, CONFETTI_DURATION, AUTO_SAVE_INTERVAL } from './config';
-import { calculateXP, calculateLevel, getProgressToNextLevel, POWER_UPS, getDailyChallenge, hasCompletedDailyChallenge, completeDailyChallenge, calculateStreakBonus, calculateComboBonus, calculateMoveEfficiency, calculateTimeBonus, generateShareResult, copyToClipboard, hasSeenTutorial, markTutorialAsSeen, TUTORIAL_STEPS, THEMES, getCurrentTheme, setTheme, getUnlockedThemes, canUsePowerUp, markPowerUpUsed, getStreakLevel, getComboLevel } from './features';
+import { 
+  calculateXP, calculateLevel, getProgressToNextLevel, POWER_UPS, getDailyChallenge, 
+  hasCompletedDailyChallenge, completeDailyChallenge, calculateStreakBonus, calculateComboBonus, 
+  calculateMoveEfficiency, calculateTimeBonus, generateShareResult, copyToClipboard, 
+  hasSeenTutorial, markTutorialAsSeen, TUTORIAL_STEPS, THEMES, getCurrentTheme, setTheme, 
+  getUnlockedThemes, canUsePowerUp, markPowerUpUsed, getStreakLevel, getComboLevel 
+} from './features';
 import { getDailyRewards, getLoginStreak, claimDailyReward, loadQuestProgress, saveQuestProgress } from './gameSystems';
 
 type Screen = 'menu' | 'game' | 'stats' | 'achievements' | 'tutorial' | 'daily' | 'powerups' | 'themes' | 'settings' | 'quests' | 'leaderboard' | 'minigames';
@@ -101,7 +107,7 @@ export default function App() {
         <p className="text-xl text-purple-200 mb-2 animate-fade-in">پازل جیگساو حرفه‌ای</p>
         <p className="text-sm text-purple-300/60 mb-8 animate-fade-in" style={{ animationDelay: '0.2s' }}>لذت ببر • آرامش داشته باش • چالش کن</p>
 
-        {/* Difficulty */}
+        {/* Difficulty Selection */}
         <div className="mb-8">
           <h3 className="text-white font-bold mb-3 text-lg">سطح دشواری</h3>
           <div className="flex flex-wrap justify-center gap-3">
@@ -109,7 +115,7 @@ export default function App() {
               <button
                 key={key}
                 onClick={() => setDifficulty(key as DifficultyKey)}
-                className={`px-6 py-3 rounded-xl font-bold transition-all ${
+                className={`px-6 py-3 rounded-xl font-bold transition-all card-hover ${
                   difficulty === key
                     ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white scale-105 shadow-lg'
                     : 'bg-white/10 text-white hover:bg-white/20'
@@ -123,7 +129,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* Game Mode */}
+        {/* Game Mode Selection */}
         <div className="mb-8">
           <h3 className="text-white font-bold mb-3 text-lg">حالت بازی</h3>
           <div className="flex flex-wrap justify-center gap-3">
@@ -131,7 +137,7 @@ export default function App() {
               <button
                 key={key}
                 onClick={() => setGameMode(key as GameModeKey)}
-                className={`px-6 py-3 rounded-xl font-bold transition-all ${
+                className={`px-6 py-3 rounded-xl font-bold transition-all card-hover ${
                   gameMode === key
                     ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white scale-105 shadow-lg'
                     : 'bg-white/10 text-white hover:bg-white/20'
@@ -176,6 +182,7 @@ export default function App() {
           <div className="h-px w-24 bg-gradient-to-l from-transparent to-white/30"></div>
         </div>
 
+        {/* Puzzle Grid */}
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4 mb-8">
           {PUZZLES.map(p => {
             const rec = getRecord(p.name);
@@ -187,7 +194,7 @@ export default function App() {
                   setName(p.name);
                   setScreen('game');
                 }}
-                className="cursor-pointer group rounded-2xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/30 relative"
+                className="cursor-pointer group rounded-2xl overflow-hidden transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/30 relative card-hover"
               >
                 <div className="aspect-[4/3] relative">
                   <img src={p.url} alt={p.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" loading="lazy" />
@@ -492,7 +499,7 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
 
       setTimeout(() => setConfetti(false), CONFETTI_DURATION);
     }
-  }, [pieces, done, soundOn, name, time, moves, bestStreak, maxCombo, gameMode, difficulty]);
+  }, [pieces, done]);
 
   // Particles
   useEffect(() => {
@@ -1229,38 +1236,8 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
               );
             })()}
 
-            {bestStreak >= 3 && (() => {
-              const streakInfo = getStreakLevel(bestStreak);
-              return (
-                <div className={`bg-gradient-to-r ${streakInfo.color} rounded-xl p-4 mb-4 border border-white/30 animate-scale-in animate-glow`} style={{ animationDelay: '0.3s' }}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-white text-lg font-bold">{streakInfo.emoji} بهترین Streak: {bestStreak}</div>
-                      <div className="text-white/80 text-sm">{streakInfo.level}</div>
-                    </div>
-                    <div className="text-white text-2xl font-black">+{calculateStreakBonus(bestStreak)}</div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {maxCombo >= 3 && (() => {
-              const comboInfo = getComboLevel(maxCombo);
-              return (
-                <div className={`bg-gradient-to-r ${comboInfo.color} rounded-xl p-4 mb-4 border border-white/30 animate-scale-in animate-glow`} style={{ animationDelay: '0.4s' }}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="text-white text-lg font-bold">{comboInfo.emoji} بیشترین Combo: x{maxCombo}</div>
-                      <div className="text-white/80 text-sm">{comboInfo.level}</div>
-                    </div>
-                    <div className="text-white text-2xl font-black">+{calculateComboBonus(maxCombo)}</div>
-                  </div>
-                </div>
-              );
-            })()}
-
             {record && (
-              <div className="bg-white/5 rounded-xl p-3 mb-4 border border-white/10 animate-scale-in" style={{ animationDelay: '0.3s' }}>
+              <div className="bg-white/5 rounded-xl p-3 mb-4 border border-white/10 animate-scale-in" style={{ animationDelay: '0.5s' }}>
                 <div className="text-purple-200 text-sm">🏆 رکورد قبلی: {formatTime(record.time)}</div>
                 {(gameMode !== 'timeAttack' || time > 0) && (time < record.time || (time === record.time && moves < record.moves)) && (
                   <div className="text-green-300 text-sm font-bold mt-1 animate-pulse animate-glow">🎉 رکورد جدید!</div>
@@ -1268,7 +1245,7 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
               </div>
             )}
 
-            <div className="mb-6 animate-scale-in" style={{ animationDelay: '0.3s' }}>
+            <div className="mb-6 animate-scale-in" style={{ animationDelay: '0.6s' }}>
               <div className="text-3xl animate-float">{moves < 80 ? '⭐⭐⭐' : moves < 140 ? '⭐⭐' : '⭐'}</div>
               <p className="text-purple-300 text-sm mt-2 animate-fade-in">{moves < 80 ? 'فوق‌العاده! استاد پازل!' : moves < 140 ? 'عالی بود!' : 'آفرین!'}</p>
             </div>
@@ -1277,14 +1254,14 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
               <button 
                 onClick={reset} 
                 className="w-full px-6 py-3 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 rounded-xl text-white font-bold transition-all transform hover:scale-105 shadow-lg animate-glow"
-                style={{ animationDelay: '0.4s' }}
+                style={{ animationDelay: '0.7s' }}
               >
                 🔄 بازی مجدد
               </button>
               <button 
                 onClick={onBack} 
                 className="w-full px-6 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-bold transition-all border border-white/10 card-hover"
-                style={{ animationDelay: '0.5s' }}
+                style={{ animationDelay: '0.8s' }}
               >
                 🏠 منوی اصلی
               </button>
@@ -1699,8 +1676,8 @@ function ThemesScreen({ onBack }: { onBack: () => void }) {
       <div className="max-w-4xl mx-auto">
         <button onClick={onBack} className="mb-6 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all">→ بازگشت</button>
         <div className="text-center mb-8">
-          <div className="text-8xl mb-4">🎨</div>
-          <h2 className="text-4xl font-black text-white mb-2">تم‌ها</h2>
+          <div className="text-8xl mb-4 animate-float">🎨</div>
+          <h2 className="text-4xl font-black text-white mb-2 animate-pop-in">تم‌ها</h2>
           <p className="text-purple-300 text-sm mt-2">سطح شما: {level} | تم‌های باز: {unlockedThemes.length}/{THEMES.length}</p>
         </div>
 
@@ -1749,8 +1726,8 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
       <div className="max-w-2xl mx-auto">
         <button onClick={onBack} className="mb-6 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all">→ بازگشت</button>
         <div className="text-center mb-8">
-          <div className="text-8xl mb-4">⚙️</div>
-          <h2 className="text-4xl font-black text-white mb-2">تنظیمات</h2>
+          <div className="text-8xl mb-4 animate-float">⚙️</div>
+          <h2 className="text-4xl font-black text-white mb-2 animate-pop-in">تنظیمات</h2>
         </div>
 
         <div className="space-y-4">
@@ -1773,7 +1750,7 @@ function SettingsScreen({ onBack }: { onBack: () => void }) {
         {showConfirmReset && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
             <div className="bg-gradient-to-br from-red-800 to-pink-800 rounded-3xl p-8 max-w-md w-full text-center border border-white/20 shadow-2xl">
-              <div className="text-6xl mb-4">⚠️</div>
+              <div className="text-6xl mb-4 animate-shake">⚠️</div>
               <h3 className="text-2xl font-bold text-white mb-4">آیا مطمئن هستید؟</h3>
               <p className="text-red-200 mb-6">تمام داده‌های شما حذف خواهد شد!</p>
               <div className="flex gap-3">
@@ -1808,8 +1785,8 @@ function QuestsScreen({ onBack }: { onBack: () => void }) {
       <div className="max-w-4xl mx-auto">
         <button onClick={onBack} className="mb-6 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all">→ بازگشت</button>
         <div className="text-center mb-8">
-          <div className="text-8xl mb-4">📜</div>
-          <h2 className="text-4xl font-black text-white mb-2">ماموریت‌ها</h2>
+          <div className="text-8xl mb-4 animate-float">📜</div>
+          <h2 className="text-4xl font-black text-white mb-2 animate-pop-in">ماموریت‌ها</h2>
           <p className="text-purple-200 text-lg">ماموریت‌ها را کامل کن و XP دریافت کن!</p>
         </div>
         <div className="mb-8">
@@ -1821,7 +1798,7 @@ function QuestsScreen({ onBack }: { onBack: () => void }) {
               const progressPercent = Math.min(100, (quest.progress / quest.target) * 100);
               return (
                 <div key={quest.id} className={`rounded-2xl p-6 border transition-all ${isCompleted && !isClaimed ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-400/30' : 'bg-white/10 border-white/20'}`}>
-                  <div className="text-5xl mb-3">{quest.emoji}</div>
+                  <div className="text-5xl mb-3 animate-float">{quest.emoji}</div>
                   <h4 className="text-xl font-bold text-white mb-2">{quest.title}</h4>
                   <p className="text-purple-200 text-sm mb-3">{quest.description}</p>
                   <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-3">
