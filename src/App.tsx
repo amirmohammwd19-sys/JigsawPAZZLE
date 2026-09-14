@@ -6,7 +6,7 @@ import {
   playWin, playTimeWarning, playAchievement, beep, 
   setMasterVolume, getMasterVolume, 
   playComboLevel, playStreakBreak, playStreakContinue, 
-  playLevelUp, playPowerUp, playError 
+  playLevelUp, playPowerUp, playError, playPlacement
 } from './audio';
 import { getStats, saveStats, getRecord, saveRecord, getLeaderboard, saveToLeaderboard, saveGame, clearAutoSave, exportSaveData, importSaveData } from './storage';
 import { checkAchievements, getAchievementById, ACHIEVEMENTS } from './achievements';
@@ -217,43 +217,43 @@ export default function App() {
 
         {/* Feature Buttons */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8 max-w-4xl mx-auto">
-          <button onClick={() => setScreen('daily')} className="px-4 py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 rounded-xl text-white font-bold transition-all transform hover:scale-105 shadow-lg">
+          <button onClick={() => setScreen('daily')} className="card-hover px-4 py-3 bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-400 hover:to-red-400 rounded-xl text-white font-bold shadow-lg">
             <div className="text-2xl mb-1">🎯</div>
             <div className="text-sm">چالش روزانه</div>
           </button>
-          <button onClick={() => setScreen('quests')} className="px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 rounded-xl text-white font-bold transition-all transform hover:scale-105 shadow-lg">
+          <button onClick={() => setScreen('quests')} className="card-hover px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 rounded-xl text-white font-bold shadow-lg">
             <div className="text-2xl mb-1">📜</div>
             <div className="text-sm">ماموریت‌ها</div>
           </button>
-          <button onClick={() => setScreen('leaderboard')} className="px-4 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 rounded-xl text-white font-bold transition-all transform hover:scale-105 shadow-lg">
+          <button onClick={() => setScreen('leaderboard')} className="card-hover px-4 py-3 bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-400 hover:to-orange-400 rounded-xl text-white font-bold shadow-lg">
             <div className="text-2xl mb-1">🏆</div>
             <div className="text-sm">جدول امتیازات</div>
           </button>
-          <button onClick={() => setScreen('minigames')} className="px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 rounded-xl text-white font-bold transition-all transform hover:scale-105 shadow-lg">
+          <button onClick={() => setScreen('minigames')} className="card-hover px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 rounded-xl text-white font-bold shadow-lg">
             <div className="text-2xl mb-1">🎮</div>
             <div className="text-sm">بازی‌های کوچک</div>
           </button>
-          <button onClick={() => setScreen('powerups')} className="px-4 py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-400 hover:to-purple-400 rounded-xl text-white font-bold transition-all transform hover:scale-105 shadow-lg">
+          <button onClick={() => setScreen('powerups')} className="card-hover px-4 py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-400 hover:to-purple-400 rounded-xl text-white font-bold shadow-lg">
             <div className="text-2xl mb-1">✨</div>
             <div className="text-sm">Power-ups</div>
           </button>
-          <button onClick={() => setScreen('themes')} className="px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 rounded-xl text-white font-bold transition-all transform hover:scale-105 shadow-lg">
+          <button onClick={() => setScreen('themes')} className="card-hover px-4 py-3 bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-400 hover:to-blue-400 rounded-xl text-white font-bold shadow-lg">
             <div className="text-2xl mb-1">🎨</div>
             <div className="text-sm">تم‌ها</div>
           </button>
-          <button onClick={() => setScreen('stats')} className="px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-bold transition-all">
+          <button onClick={() => setScreen('stats')} className="card-hover px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-bold">
             <div className="text-2xl mb-1">📊</div>
             <div className="text-sm">آمار</div>
           </button>
-          <button onClick={() => setScreen('achievements')} className="px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-bold transition-all">
+          <button onClick={() => setScreen('achievements')} className="card-hover px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-bold">
             <div className="text-2xl mb-1">🏅</div>
             <div className="text-sm">Achievements</div>
           </button>
-          <button onClick={() => setScreen('tutorial')} className="px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-bold transition-all">
+          <button onClick={() => setScreen('tutorial')} className="card-hover px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-bold">
             <div className="text-2xl mb-1">📖</div>
             <div className="text-sm">آموزش</div>
           </button>
-          <button onClick={() => setScreen('settings')} className="px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-bold transition-all">
+          <button onClick={() => setScreen('settings')} className="card-hover px-4 py-3 bg-white/10 hover:bg-white/20 rounded-xl text-white font-bold">
             <div className="text-2xl mb-1">⚙️</div>
             <div className="text-sm">تنظیمات</div>
           </button>
@@ -263,7 +263,7 @@ export default function App() {
             if (copyToClipboard(text)) {
               alert('✅ اطلاعات کپی شد!');
             }
-          }} className="px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 rounded-xl text-white font-bold transition-all transform hover:scale-105 shadow-lg">
+          }} className="card-hover px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-400 hover:to-emerald-400 rounded-xl text-white font-bold shadow-lg">
             <div className="text-2xl mb-1">📤</div>
             <div className="text-sm">اشتراک‌گذاری</div>
           </button>
@@ -581,10 +581,12 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
       if (p1ok && dims) {
         setLastPlacedId(p1.id);
         spawnParticles(p1.c * dims.pw + dims.ext + dims.pw / 2, p1.r * dims.ph + dims.ext + dims.ph / 2, 25, 'celebration');
+        if (soundOn) playPlacement();
       }
       if (p2ok && dims) {
         setLastPlacedId(p2.id);
         spawnParticles(p2.c * dims.pw + dims.ext + dims.pw / 2, p2.r * dims.ph + dims.ext + dims.ph / 2, 25, 'celebration');
+        if (soundOn) playPlacement();
       }
       setTimeout(() => setLastPlacedId(null), 800);
     } else {
@@ -780,7 +782,7 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
       {confetti && <Confetti />}
 
       {toast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-full font-bold shadow-2xl animate-bounce-in">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-full font-bold shadow-2xl toast-enter">
           {toast}
         </div>
       )}
@@ -916,11 +918,19 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
         <div className="mt-2 bg-black/30 rounded-full p-1 border border-white/10">
           <div className="flex items-center gap-3 px-3">
             <div className="flex-1 h-2.5 bg-white/10 rounded-full overflow-hidden">
-              <div className="h-full rounded-full transition-all duration-500 relative overflow-hidden" style={{ width: `${prog}%`, background: prog === 100 ? 'linear-gradient(90deg,#10b981,#34d399)' : 'linear-gradient(90deg,#8b5cf6,#ec4899,#f59e0b)' }}>
+              <div 
+                className="h-full rounded-full relative overflow-hidden progress-fill" 
+                style={{ 
+                  width: `${prog}%`, 
+                  background: prog === 100 ? 'linear-gradient(90deg,#10b981,#34d399)' : 'linear-gradient(90deg,#8b5cf6,#ec4899,#f59e0b)' 
+                }}
+              >
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer"></div>
               </div>
             </div>
-            <span className="text-white font-bold text-sm min-w-[2.5rem] text-left">{prog}%</span>
+            <span className={`text-white font-bold text-sm min-w-[2.5rem] text-left ${prog === 100 ? 'animate-pop-in text-green-300' : ''}`}>
+              {prog}%
+            </span>
           </div>
         </div>
       </div>
@@ -1001,12 +1011,36 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
                 else if (isHover) { sc = 'rgba(251,191,36,0.5)'; sw2 = 1.8; }
 
                 return (
-                  <g key={p.id} transform={`translate(${x},${y})`} onPointerDown={e => handleDragStart(e, p.id)} style={{ cursor: 'pointer' }} filter={f} opacity={isHover ? 0.85 : 1}>
+                  <g 
+                    key={p.id} 
+                    transform={`translate(${x},${y})`} 
+                    onPointerDown={e => handleDragStart(e, p.id)} 
+                    style={{ 
+                      cursor: 'pointer',
+                      transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease'
+                    }} 
+                    filter={f} 
+                    opacity={isHover ? 0.9 : 1}
+                  >
                     <g clipPath={`url(#c-${p.id})`}>
                       <image href={url} x={-p.cc * pw} y={-p.cr * ph} width={config.cols * pw} height={config.rows * ph} preserveAspectRatio="none" />
                     </g>
-                    <path d={generatePiecePath(pw, ph, shape)} fill="none" stroke={sc} strokeWidth={sw2} strokeLinejoin="round" />
-                    {isOk && !done && <path d={generatePiecePath(pw, ph, shape)} fill="rgba(52,211,153,0.04)" stroke="none" />}
+                    <path 
+                      d={generatePiecePath(pw, ph, shape)} 
+                      fill="none" 
+                      stroke={sc} 
+                      strokeWidth={sw2} 
+                      strokeLinejoin="round"
+                      style={{ transition: 'stroke 0.3s ease, stroke-width 0.3s ease' }}
+                    />
+                    {isOk && !done && (
+                      <path 
+                        d={generatePiecePath(pw, ph, shape)} 
+                        fill="rgba(52,211,153,0.08)" 
+                        stroke="none"
+                        style={{ animation: 'pop-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
+                      />
+                    )}
                   </g>
                 );
               })}
