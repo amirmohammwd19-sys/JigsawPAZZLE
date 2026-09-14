@@ -830,26 +830,51 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
   const dragStartPos = useRef<{ x: number; y: number } | null>(null);
   const dragPieceId = useRef<number | null>(null);
 
-  // Load image
+  // Load image - with cleanup
   useEffect(() => {
     setImageLoading(true);
+    let cancelled = false;
     const i = new Image();
     
     if (url.startsWith('blob:')) {
-      i.onload = () => { setImg(i); setImageLoading(false); };
-      i.onerror = () => setImageLoading(false);
+      i.onload = () => { 
+        if (!cancelled) {
+          setImg(i); 
+          setImageLoading(false); 
+        }
+      };
+      i.onerror = () => {
+        if (!cancelled) setImageLoading(false);
+      };
       i.src = url;
     } else {
       i.crossOrigin = 'anonymous';
-      i.onload = () => { setImg(i); setImageLoading(false); };
+      i.onload = () => { 
+        if (!cancelled) {
+          setImg(i); 
+          setImageLoading(false); 
+        }
+      };
       i.onerror = () => {
+        if (cancelled) return;
         const i2 = new Image();
-        i2.onload = () => { setImg(i2); setImageLoading(false); };
-        i2.onerror = () => setImageLoading(false);
+        i2.onload = () => { 
+          if (!cancelled) {
+            setImg(i2); 
+            setImageLoading(false); 
+          }
+        };
+        i2.onerror = () => {
+          if (!cancelled) setImageLoading(false);
+        };
         i2.src = url;
       };
       i.src = url;
     }
+    
+    return () => {
+      cancelled = true;
+    };
   }, [url]);
 
   // Initialize puzzle
@@ -867,19 +892,55 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
       setBestStreak(0);
       setCombo(0);
       setMaxCombo(0);
+      setPaused(false);
+      setConfetti(false);
+      setToast(null);
+      setHint(null);
+      setDragPiece(null);
+      setDragPos(null);
+      setHoverPiece(null);
+      setParticles([]);
+      setLastPlacedId(null);
     }
   }, [img, config.cols, config.rows, gameMode]);
 
-  // Resize
+  // Auto-save every 30 seconds
   useEffect(() => {
+    if (pieces.length > 0 && !done && moves > 0) {
+      const interval = setInterval(() => {
+        saveGame({
+          puzzleName: name,
+          pieces: pieces.map(p => ({ ...p })),
+          moves,
+          time,
+          date: new Date().toISOString()
+        });
+      }, AUTO_SAVE_INTERVAL);
+      
+      return () => clearInterval(interval);
+    }
+  }, [pieces, moves, time, done, name]);
+
+  // Resize - with debounce
+  useEffect(() => {
+    let timeoutId: any;
     const resize = () => {
       if (containerRef.current) {
         setCw(Math.min(containerRef.current.clientWidth - 20, 850));
       }
     };
+    
+    const debouncedResize = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(resize, 100);
+    };
+    
     resize();
-    window.addEventListener('resize', resize);
-    return () => window.removeEventListener('resize', resize);
+    window.addEventListener('resize', debouncedResize);
+    return () => {
+      window.removeEventListener('resize', debouncedResize);
+      clearTimeout(timeoutId);
+    };
   }, []);
 
   // Timer
@@ -889,7 +950,10 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
         timerRef.current = setInterval(() => {
           setTime(t => {
             if (t <= 11 && t > 0 && soundOn) playTimeWarning();
-            if (t <= 1) { setDone(true); return 0; }
+            if (t <= 1) { 
+              setDone(true); 
+              return 0; 
+            }
             return t - 1;
           });
         }, 1000);
@@ -897,12 +961,17 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
         timerRef.current = setInterval(() => setTime(t => t + 1), 1000);
       }
     }
-    return () => clearInterval(timerRef.current);
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+    };
   }, [done, paused, gameMode, soundOn]);
 
   // Check completion
   useEffect(() => {
-    if (pieces.length > 0 && isPuzzleComplete(pieces)) {
+    if (pieces.length > 0 && isPuzzleComplete(pieces) && !done) {
       setDone(true);
       setConfetti(true);
       if (soundOn) playWin();
@@ -947,26 +1016,53 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
 
       setTimeout(() => setConfetti(false), CONFETTI_DURATION);
     }
-  }, [pieces, soundOn, name, time, moves, bestStreak, maxCombo, gameMode, difficulty]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pieces, done]);
 
-  // Particles
+  // Particles - optimized with requestAnimationFrame
   useEffect(() => {
     if (particles.length === 0) return;
-    const id = setInterval(() => {
-      setParticles(prev => prev.map(p => ({ ...p, x: p.x + p.vx, y: p.y + p.vy, vy: p.vy + 0.3, life: p.life - 1 })).filter(p => p.life > 0));
-    }, 16);
-    return () => clearInterval(id);
+    
+    let animationFrame: number;
+    const animate = () => {
+      setParticles(prev => 
+        prev
+          .map(p => ({ ...p, x: p.x + p.vx, y: p.y + p.vy, vy: p.vy + 0.3, life: p.life - 1 }))
+          .filter(p => p.life > 0)
+      );
+      animationFrame = requestAnimationFrame(animate);
+    };
+    
+    animationFrame = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animationFrame);
   }, [particles.length]);
 
-  // Dimensions
+  // Dimensions - optimized
   const dims = useMemo(() => {
     if (!img) return null;
     const ia = img.width / img.height;
     const pw = cw / (config.cols + 0.5);
     const ph = pw / ia;
     const ext = pw * 0.22;
-    return { pw, ph, ext, sw: config.cols * pw + ext * 2, sh: config.rows * ph + ext * 2 };
+    return { 
+      pw, 
+      ph, 
+      ext, 
+      sw: config.cols * pw + ext * 2, 
+      sh: config.rows * ph + ext * 2 
+    };
   }, [img, cw, config.cols, config.rows]);
+
+  // Piece paths - memoized for performance
+  const piecePaths = useMemo(() => {
+    if (!edges || !dims) return null;
+    const paths: { [key: number]: string } = {};
+    pieces.forEach(p => {
+      const shape = getShape(p.cr, p.cc, edges, config.cols, config.rows);
+      paths[p.id] = generatePiecePath(dims.pw, dims.ph, shape);
+    });
+    return paths;
+  }, [edges, dims, pieces, config.cols, config.rows]);
 
   const showToast = (msg: string) => {
     setToast(msg);
@@ -1042,7 +1138,7 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
       setCombo(0);
       if (soundOn) playSwap();
     }
-  }, [pieces, soundOn, dims, spawnParticles, combo]);
+  }, [pieces, soundOn, dims, spawnParticles, combo, streak]);
 
   const handlePieceClick = useCallback((pieceId: number) => {
     if (done || isDragging.current) return;
@@ -1196,7 +1292,8 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [done, undo, redo, doHint, preview, sel]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [done, preview, sel]);
 
   const ok = getCorrectCount(pieces);
   const prog = calculateProgress(pieces);
@@ -1434,13 +1531,15 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
                 else if (isOk && !done) { sc = 'rgba(52,211,153,0.35)'; sw2 = 1.2; }
                 else if (isHover) { sc = 'rgba(251,191,36,0.5)'; sw2 = 1.8; }
 
+                const pathData = piecePaths?.[p.id] || generatePiecePath(pw, ph, shape);
+
                 return (
                   <g key={p.id} transform={`translate(${x},${y})`} onPointerDown={e => handleDragStart(e, p.id)} style={{ cursor: 'pointer' }} filter={f} opacity={isHover ? 0.85 : 1}>
                     <g clipPath={`url(#c-${p.id})`}>
                       <image href={url} x={-p.cc * pw} y={-p.cr * ph} width={config.cols * pw} height={config.rows * ph} preserveAspectRatio="none" />
                     </g>
-                    <path d={generatePiecePath(pw, ph, shape)} fill="none" stroke={sc} strokeWidth={sw2} strokeLinejoin="round" />
-                    {isOk && !done && <path d={generatePiecePath(pw, ph, shape)} fill="rgba(52,211,153,0.04)" stroke="none" />}
+                    <path d={pathData} fill="none" stroke={sc} strokeWidth={sw2} strokeLinejoin="round" />
+                    {isOk && !done && <path d={pathData} fill="rgba(52,211,153,0.04)" stroke="none" />}
                   </g>
                 );
               })}
