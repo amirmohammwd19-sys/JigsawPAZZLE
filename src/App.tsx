@@ -1,7 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Piece, Edges, Particle } from './types';
 import { genEdges, getShape, generatePiecePath, createPieces, swapPieces, isPieceCorrect, isPuzzleComplete, getCorrectCount, formatTime, calculateProgress } from './utils';
-import { playClick, playSelect, playSwap, playCorrect, playUndo, playHint, playWin, playTimeWarning, playAchievement, beep, setMasterVolume, getMasterVolume, playComboLevel, playStreakBreak, playStreakContinue, playLevelUp, playPowerUp, playError } from './audio';
+import { 
+  playClick, playSelect, playSwap, playCorrect, playUndo, playHint, 
+  playWin, playTimeWarning, playAchievement, beep, 
+  setMasterVolume, getMasterVolume, 
+  playComboLevel, playStreakBreak, playStreakContinue, 
+  playLevelUp, playPowerUp, playError 
+} from './audio';
 import { getStats, saveStats, getRecord, saveRecord, getLeaderboard, saveToLeaderboard, saveGame, clearAutoSave, exportSaveData, importSaveData } from './storage';
 import { checkAchievements, getAchievementById, ACHIEVEMENTS } from './achievements';
 import { DIFFICULTIES, GAME_MODES, PUZZLES, VERSION, MAX_HISTORY, TIME_ATTACK_DURATION, AUTO_SOLVE_INTERVAL, PARTICLE_COUNT, TOAST_DURATION, HINT_DURATION, CONFETTI_DURATION, AUTO_SAVE_INTERVAL } from './config';
@@ -427,6 +433,10 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
       const totalEarnedXP = earnedXP + streakBonus + timeBonus;
       const efficiency = calculateMoveEfficiency(moves, pieces.length);
 
+      const oldLevel = calculateLevel(stats.totalXP || 0);
+      const newTotalXP = (stats.totalXP || 0) + totalEarnedXP;
+      const newLevel = calculateLevel(newTotalXP);
+
       saveStats({
         ...stats,
         gamesPlayed: stats.gamesPlayed + 1,
@@ -434,10 +444,15 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
         bestStreak: Math.max(stats.bestStreak, bestStreak),
         maxCombo: Math.max(stats.maxCombo, maxCombo),
         totalCorrect: stats.totalCorrect + pieces.length,
-        totalXP: (stats.totalXP || 0) + totalEarnedXP,
+        totalXP: newTotalXP,
         totalTime: (stats.totalTime || 0) + finalTime,
         bestEfficiency: Math.max(stats.bestEfficiency || 0, efficiency)
       });
+
+      // Level up sound
+      if (newLevel > oldLevel && soundOn) {
+        playLevelUp();
+      }
 
       const score = Math.round((10000 / Math.max(1, finalTime)) * (100 / Math.max(1, moves)));
       saveToLeaderboard({ name: 'Player', score, date: new Date().toISOString(), puzzle: name });
@@ -1378,7 +1393,26 @@ function PowerUpsScreen({ onBack }: { onBack: () => void }) {
                     <p className="text-purple-200 text-sm mb-3">{powerUp.desc}</p>
                     <div className="flex items-center justify-between">
                       <span className="text-yellow-300 font-bold">{powerUp.cost} XP</span>
-                      {canAfford ? <button className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg text-white text-sm font-bold">خرید</button> : <span className="text-red-300 text-sm">XP کافی نیست</span>}
+                      {canAfford ? (
+                        <button 
+                          onClick={() => {
+                            playPowerUp();
+                            alert(`✅ ${powerUp.name} خریداری شد!`);
+                          }}
+                          className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg text-white text-sm font-bold hover:scale-105 transition-transform"
+                        >
+                          خرید
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            playError();
+                          }}
+                          className="px-4 py-2 bg-red-500/30 rounded-lg text-red-300 text-sm font-bold cursor-not-allowed"
+                        >
+                          XP کافی نیست
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
