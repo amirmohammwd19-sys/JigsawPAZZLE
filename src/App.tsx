@@ -9,9 +9,10 @@ const saveRec = saveRecord;
 import { checkAchievements, ACHIEVEMENTS } from './achievements';
 import { DIFFICULTIES, GAME_MODES, PUZZLES, VERSION, MAX_HISTORY, TIME_ATTACK_DURATION, PARTICLE_COUNT, TOAST_DURATION, HINT_DURATION, CONFETTI_DURATION } from './config';
 import { calculateXP, calculateLevel, getProgressToNextLevel, POWER_UPS, getDailyChallenge, hasCompletedDailyChallenge, completeDailyChallenge, calculateStreakBonus, calculateMoveEfficiency, calculateTimeBonus, hasSeenTutorial, markTutorialAsSeen, TUTORIAL_STEPS, THEMES, getCurrentTheme, setTheme, getUnlockedThemes } from './features';
-import { getDailyRewards, getLoginStreak, claimDailyReward } from './gameSystems';
+import { getDailyRewards, getLoginStreak, claimDailyReward, loadQuestProgress, saveQuestProgress } from './gameSystems';
+import type { Quest } from './types';
 
-type Screen = 'menu' | 'game' | 'stats' | 'achs' | 'tut' | 'daily' | 'pu' | 'themes' | 'set' | 'lb';
+type Screen = 'menu' | 'game' | 'stats' | 'achs' | 'tut' | 'daily' | 'pu' | 'themes' | 'set' | 'lb' | 'quests' | 'minigames';
 type DiffKey = keyof typeof DIFFICULTIES;
 type ModeKey = keyof typeof GAME_MODES;
 
@@ -45,6 +46,8 @@ export default function App() {
   if (scr === 'themes') return <ThScr onBack={() => setScr('menu')} />;
   if (scr === 'set') return <SetScr onBack={() => setScr('menu')} />;
   if (scr === 'lb') return <LBScr onBack={() => setScr('menu')} />;
+  if (scr === 'quests') return <QuestsScreen onBack={() => setScr('menu')} />;
+  if (scr === 'minigames') return <MiniGamesScreen onBack={() => setScr('menu')} />;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">
@@ -131,7 +134,9 @@ export default function App() {
 
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-8 max-w-4xl mx-auto">
           <Btn onClick={() => setScr('daily')} icon="🎯" label="چالش روزانه" gradient="from-orange-500 to-red-500" />
+          <Btn onClick={() => setScr('quests')} icon="📜" label="ماموریت‌ها" gradient="from-indigo-500 to-purple-500" />
           <Btn onClick={() => setScr('lb')} icon="🏆" label="جدول امتیازات" gradient="from-yellow-500 to-orange-500" />
+          <Btn onClick={() => setScr('minigames')} icon="🎮" label="بازی‌های کوچک" gradient="from-green-500 to-emerald-500" />
           <Btn onClick={() => setScr('pu')} icon="✨" label="Power-ups" gradient="from-pink-500 to-purple-500" />
           <Btn onClick={() => setScr('themes')} icon="🎨" label="تم‌ها" gradient="from-cyan-500 to-blue-500" />
           <Btn onClick={() => setScr('stats')} icon="📊" label="آمار" />
@@ -646,6 +651,78 @@ function LBScr({ onBack }: { onBack: () => void }) {
             <div className="space-y-3">{lb.map((e, i) => { const m = ['🥇', '🥈', '🥉']; const md = i < 3 ? m[i] : `#${i + 1}`; return <div key={i} className={`flex items-center justify-between p-4 rounded-xl transition-all ${i === 0 ? 'bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-400/30' : i === 1 ? 'bg-gradient-to-r from-gray-400/20 to-slate-500/20 border border-gray-400/30' : i === 2 ? 'bg-gradient-to-r from-orange-600/20 to-amber-600/20 border border-orange-500/30' : 'bg-white/5 border border-white/10'}`}><div className="flex items-center gap-4"><div className="text-4xl">{md}</div><div><div className="text-white font-bold text-lg">{e.name}</div><div className="text-purple-200 text-sm">{e.puzzle}</div></div></div><div className="text-right"><div className="text-yellow-300 font-black text-2xl">{e.score}</div><div className="text-purple-200 text-xs">{new Date(e.date).toLocaleDateString('fa-IR')}</div></div></div>; })}</div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function QuestsScreen({ onBack }: { onBack: () => void }) {
+  const [quests, setQuests] = useState(loadQuestProgress());
+  const [claimedRewards, setClaimedRewards] = useState<string[]>([]);
+  const dailyQuests = quests.filter((q: Quest) => q.type === 'daily');
+
+  const handleClaimReward = (questId: string, reward: number) => {
+    const stats = getStats();
+    saveStats({ ...stats, totalXP: (stats.totalXP || 0) + reward });
+    const newClaimedRewards = [...claimedRewards, questId];
+    setClaimedRewards(newClaimedRewards);
+    const updatedQuests = quests.map((q: Quest) => q.id === questId ? { ...q, progress: q.target } : q);
+    setQuests(updatedQuests);
+    saveQuestProgress(updatedQuests);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4">
+      <div className="max-w-4xl mx-auto">
+        <button onClick={onBack} className="mb-6 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all">→ بازگشت</button>
+        <div className="text-center mb-8">
+          <div className="text-8xl mb-4">📜</div>
+          <h2 className="text-4xl font-black text-white mb-2">ماموریت‌ها</h2>
+          <p className="text-purple-200 text-lg">ماموریت‌ها را کامل کن و XP دریافت کن!</p>
+        </div>
+        <div className="mb-8">
+          <h3 className="text-2xl font-bold text-white mb-4">🎯 ماموریت‌های روزانه</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {dailyQuests.map((quest: Quest) => {
+              const isCompleted = quest.progress >= quest.target;
+              const isClaimed = claimedRewards.includes(quest.id);
+              const progressPercent = Math.min(100, (quest.progress / quest.target) * 100);
+              return (
+                <div key={quest.id} className={`rounded-2xl p-6 border transition-all ${isCompleted && !isClaimed ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-400/30' : 'bg-white/10 border-white/20'}`}>
+                  <div className="text-5xl mb-3">{quest.emoji}</div>
+                  <h4 className="text-xl font-bold text-white mb-2">{quest.title}</h4>
+                  <p className="text-purple-200 text-sm mb-3">{quest.description}</p>
+                  <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-3">
+                    <div className="h-full bg-gradient-to-r from-green-400 to-emerald-500 transition-all" style={{ width: `${progressPercent}%` }} />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-purple-200 text-sm">{quest.progress}/{quest.target}</span>
+                    <span className="text-yellow-300 font-bold">+{quest.reward} XP</span>
+                  </div>
+                  {isCompleted && !isClaimed && (
+                    <button onClick={() => handleClaimReward(quest.id, quest.reward)} className="w-full mt-3 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg text-white font-bold transition-all hover:scale-105">دریافت پاداش</button>
+                  )}
+                  {isClaimed && <div className="w-full mt-3 px-4 py-2 bg-white/5 rounded-lg text-center text-green-300 font-bold">✓ دریافت شد</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MiniGamesScreen({ onBack }: { onBack: () => void }) {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4">
+      <div className="max-w-4xl mx-auto">
+        <button onClick={onBack} className="mb-6 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all">→ بازگشت</button>
+        <div className="text-center mb-8">
+          <div className="text-8xl mb-4">🎮</div>
+          <h2 className="text-4xl font-black text-white mb-2">بازی‌های کوچک</h2>
+          <p className="text-purple-200 text-lg">به زودی...</p>
+        </div>
       </div>
     </div>
   );
