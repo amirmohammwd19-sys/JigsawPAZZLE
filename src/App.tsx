@@ -79,7 +79,7 @@ export default function App() {
   if (screen === 'minigames') return <MiniGamesScreen onBack={() => setScreen('menu')} />;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 page-transition">
       {showDailyReward && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
           <div className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 rounded-3xl p-8 max-w-md w-full text-center border-2 border-yellow-400/50 shadow-2xl animate-bounce-in animate-glow">
@@ -984,7 +984,7 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
   const { pw, ph, ext, sw, sh } = dims;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-2 md:p-4">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-2 md:p-4 page-transition">
       {confetti && <Confetti />}
 
       {toast && (
@@ -993,11 +993,76 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
         </div>
       )}
 
-      {/* Combo Visual Effect */}
+      {/* Combo Visual Effect - Professional */}
       {showComboEffect && combo >= 5 && (
-        <div className="fixed inset-0 pointer-events-none z-40 flex items-center justify-center">
-          <div className="text-9xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-red-500 to-purple-600 animate-combo-effect">
-            x{combo}
+        <div className="fixed inset-0 pointer-events-none z-40 flex items-center justify-center overflow-hidden">
+          {/* Background Ring Effects */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="absolute w-64 h-64 rounded-full border-4 border-yellow-400/50 animate-combo-ring" style={{ animationDelay: '0s' }}></div>
+            <div className="absolute w-64 h-64 rounded-full border-4 border-orange-500/50 animate-combo-ring" style={{ animationDelay: '0.2s' }}></div>
+            <div className="absolute w-64 h-64 rounded-full border-4 border-red-600/50 animate-combo-ring" style={{ animationDelay: '0.4s' }}></div>
+          </div>
+
+          {/* Sparkle Effects */}
+          <div className="absolute inset-0">
+            {Array.from({ length: 20 }).map((_, i) => (
+              <div
+                key={i}
+                className="absolute w-2 h-2 bg-yellow-400 rounded-full animate-combo-sparkle"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                  animationDelay: `${Math.random() * 1}s`,
+                  boxShadow: '0 0 10px rgba(255, 215, 0, 0.8), 0 0 20px rgba(255, 215, 0, 0.4)'
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Main Combo Text */}
+          <div className="relative animate-combo-effect">
+            {/* Glow Background */}
+            <div className="absolute inset-0 blur-3xl bg-gradient-to-r from-yellow-400 via-orange-500 to-red-600 opacity-50 animate-combo-pulse"></div>
+            
+            {/* Main Text */}
+            <div className="relative text-9xl font-black animate-combo-glow">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-orange-400 to-red-500 drop-shadow-2xl">
+                x{combo}
+              </span>
+            </div>
+
+            {/* Subtitle */}
+            <div className="text-center mt-4 animate-combo-shake">
+              <span className="text-3xl font-bold text-yellow-300 drop-shadow-lg">
+                {combo >= 15 ? 'LEGENDARY!' : combo >= 10 ? 'EPIC!' : combo >= 7 ? 'GREAT!' : 'COMBO!'}
+              </span>
+            </div>
+          </div>
+
+          {/* Particle Effects */}
+          <div className="absolute inset-0">
+            {Array.from({ length: 30 }).map((_, i) => {
+              const angle = (i / 30) * Math.PI * 2;
+              const distance = 200 + Math.random() * 100;
+              const tx = Math.cos(angle) * distance;
+              const ty = Math.sin(angle) * distance;
+              
+              return (
+                <div
+                  key={i}
+                  className="absolute w-3 h-3 rounded-full"
+                  style={{
+                    left: '50%',
+                    top: '50%',
+                    backgroundColor: ['#fbbf24', '#f59e0b', '#ef4444', '#dc2626', '#f97316'][i % 5],
+                    animation: `combo-particle 1.5s ease-out ${i * 0.05}s forwards`,
+                    '--tx': `${tx}px`,
+                    '--ty': `${ty}px`,
+                    boxShadow: '0 0 15px currentColor'
+                  } as any}
+                />
+              );
+            })}
           </div>
         </div>
       )}
@@ -1527,10 +1592,10 @@ function StatsScreen({ onBack }: { onBack: () => void }) {
   const progress = getProgressToNextLevel(stats.totalXP || 0);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4 page-transition">
       <div className="max-w-4xl mx-auto">
         <button onClick={onBack} className="mb-6 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all">→ بازگشت</button>
-        <h2 className="text-4xl font-black text-white mb-8 text-center">📊 آمار بازی</h2>
+        <h2 className="text-4xl font-black text-white mb-8 text-center animate-bounce-in">📊 آمار بازی</h2>
 
         <div className="bg-gradient-to-r from-yellow-500/20 to-orange-500/20 backdrop-blur-md rounded-3xl p-6 border border-yellow-400/30 mb-8">
           <div className="flex items-center justify-between mb-4">
