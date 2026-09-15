@@ -1852,48 +1852,88 @@ html {
 
 @keyframes svg-morph {
   0% {
-    transform: scale(1) rotate(0deg) rotateX(0deg) rotateY(0deg);
-    filter: brightness(1) drop-shadow(0 0 0px transparent) saturate(1);
+    transform: scale(1) rotate(0deg) rotateX(0deg) rotateY(0deg) rotateZ(0deg) perspective(1000px);
+    filter: brightness(1) drop-shadow(0 0 0px transparent) saturate(1) hue-rotate(0deg);
+  }
+  5% {
+    transform: scale(1.01) rotate(0.5deg) rotateX(9deg) rotateY(9deg) rotateZ(0.5deg) perspective(1000px);
+    filter: brightness(1.02) drop-shadow(0 1px 3px rgba(168, 85, 247, 0.1)) saturate(1.02) hue-rotate(9deg);
   }
   10% {
-    transform: scale(1.02) rotate(1deg) rotateX(18deg) rotateY(18deg);
-    filter: brightness(1.05) drop-shadow(0 2px 6px rgba(168, 85, 247, 0.2)) saturate(1.05);
+    transform: scale(1.02) rotate(1deg) rotateX(18deg) rotateY(18deg) rotateZ(1deg) perspective(1000px);
+    filter: brightness(1.05) drop-shadow(0 2px 6px rgba(168, 85, 247, 0.2)) saturate(1.05) hue-rotate(18deg);
+  }
+  15% {
+    transform: scale(1.03) rotate(1.5deg) rotateX(27deg) rotateY(27deg) rotateZ(1.5deg) perspective(1000px);
+    filter: brightness(1.07) drop-shadow(0 3px 8px rgba(168, 85, 247, 0.25)) saturate(1.07) hue-rotate(27deg);
   }
   20% {
-    transform: scale(1.04) rotate(2deg) rotateX(36deg) rotateY(36deg);
-    filter: brightness(1.1) drop-shadow(0 4px 10px rgba(168, 85, 247, 0.3)) saturate(1.1);
+    transform: scale(1.04) rotate(2deg) rotateX(36deg) rotateY(36deg) rotateZ(2deg) perspective(1000px);
+    filter: brightness(1.1) drop-shadow(0 4px 10px rgba(168, 85, 247, 0.3)) saturate(1.1) hue-rotate(36deg);
+  }
+  25% {
+    transform: scale(1.05) rotate(2.5deg) rotateX(45deg) rotateY(45deg) rotateZ(2.5deg) perspective(1000px);
+    filter: brightness(1.12) drop-shadow(0 5px 11px rgba(168, 85, 247, 0.35)) saturate(1.12) hue-rotate(45deg);
   }
   30% {
-    transform: scale(1.06) rotate(3deg) rotateX(54deg) rotateY(54deg);
-    filter: brightness(1.15) drop-shadow(0 6px 12px rgba(168, 85, 247, 0.4)) saturate(1.15);
+    transform: scale(1.06) rotate(3deg) rotateX(54deg) rotateY(54deg) rotateZ(3deg) perspective(1000px);
+    filter: brightness(1.15) drop-shadow(0 6px 12px rgba(168, 85, 247, 0.4)) saturate(1.15) hue-rotate(54deg);
+  }
+  35% {
+    transform: scale(1.07) rotate(3.5deg) rotateX(63deg) rotateY(63deg) rotateZ(3.5deg) perspective(1000px);
+    filter: brightness(1.17) drop-shadow(0 7px 14px rgba(168, 85, 247, 0.45)) saturate(1.17) hue-rotate(63deg);
   }
   40% {
-    transform: scale(1.08) rotate(4deg) rotateX(72deg) rotateY(72deg);
-    filter: brightness(1.2) drop-shadow(0 8px 16px rgba(168, 85, 247, 0.5)) saturate(1.2);
+    transform: scale(1.08) rotate(4deg) rotateX(72deg) rotateY(72deg) rotateZ(4deg) perspective(1000px);
+    filter: brightness(1.2) drop-shadow(0 8px 16px rgba(168, 85, 247, 0.5)) saturate(1.2) hue-rotate(72deg);
+  }
+  45% {
+    transform: scale(1.09) rotate(4.5deg) rotateX(81deg) rotateY(81deg) rotateZ(4.5deg) perspective(1000px);
+    filter: brightness(1.22) drop-shadow(0 9px 18px rgba(168, 85, 247, 0.55)) saturate(1.22) hue-rotate(81deg);
   }
   50% {
-    transform: scale(1.1) rotate(5deg) rotateX(90deg) rotateY(90deg);
-    filter: brightness(1.25) drop-shadow(0 10px 20px rgba(168, 85, 247, 0.6)) saturate(1.25);
+    transform: scale(1.1) rotate(5deg) rotateX(90deg) rotateY(90deg) rotateZ(5deg) perspective(1000px);
+    filter: brightness(1.25) drop-shadow(0 10px 20px rgba(168, 85, 247, 0.6)) saturate(1.25) hue-rotate(90deg);
+  }
+  55% {
+    transform: scale(1.09) rotate(4.5deg) rotateX(99deg) rotateY(99deg) rotateZ(4.5deg) perspective(1000px);
+    filter: brightness(1.22) drop-shadow(0 9px 18px rgba(168, 85, 247, 0.55)) saturate(1.22) hue-rotate(99deg);
   }
   60% {
-    transform: scale(1.08) rotate(4deg) rotateX(108deg) rotateY(108deg);
-    filter: brightness(1.2) drop-shadow(0 8px 16px rgba(168, 85, 247, 0.5)) saturate(1.2);
+    transform: scale(1.08) rotate(4deg) rotateX(108deg) rotateY(108deg) rotateZ(4deg) perspective(1000px);
+    filter: brightness(1.2) drop-shadow(0 8px 16px rgba(168, 85, 247, 0.5)) saturate(1.2) hue-rotate(108deg);
+  }
+  65% {
+    transform: scale(1.07) rotate(3.5deg) rotateX(117deg) rotateY(117deg) rotateZ(3.5deg) perspective(1000px);
+    filter: brightness(1.17) drop-shadow(0 7px 14px rgba(168, 85, 247, 0.45)) saturate(1.17) hue-rotate(117deg);
   }
   70% {
-    transform: scale(1.06) rotate(3deg) rotateX(126deg) rotateY(126deg);
-    filter: brightness(1.15) drop-shadow(0 6px 12px rgba(168, 85, 247, 0.4)) saturate(1.15);
+    transform: scale(1.06) rotate(3deg) rotateX(126deg) rotateY(126deg) rotateZ(3deg) perspective(1000px);
+    filter: brightness(1.15) drop-shadow(0 6px 12px rgba(168, 85, 247, 0.4)) saturate(1.15) hue-rotate(126deg);
+  }
+  75% {
+    transform: scale(1.05) rotate(2.5deg) rotateX(135deg) rotateY(135deg) rotateZ(2.5deg) perspective(1000px);
+    filter: brightness(1.12) drop-shadow(0 5px 11px rgba(168, 85, 247, 0.35)) saturate(1.12) hue-rotate(135deg);
   }
   80% {
-    transform: scale(1.04) rotate(2deg) rotateX(144deg) rotateY(144deg);
-    filter: brightness(1.1) drop-shadow(0 4px 10px rgba(168, 85, 247, 0.3)) saturate(1.1);
+    transform: scale(1.04) rotate(2deg) rotateX(144deg) rotateY(144deg) rotateZ(2deg) perspective(1000px);
+    filter: brightness(1.1) drop-shadow(0 4px 10px rgba(168, 85, 247, 0.3)) saturate(1.1) hue-rotate(144deg);
+  }
+  85% {
+    transform: scale(1.03) rotate(1.5deg) rotateX(153deg) rotateY(153deg) rotateZ(1.5deg) perspective(1000px);
+    filter: brightness(1.07) drop-shadow(0 3px 8px rgba(168, 85, 247, 0.25)) saturate(1.07) hue-rotate(153deg);
   }
   90% {
-    transform: scale(1.02) rotate(1deg) rotateX(162deg) rotateY(162deg);
-    filter: brightness(1.05) drop-shadow(0 2px 6px rgba(168, 85, 247, 0.2)) saturate(1.05);
+    transform: scale(1.02) rotate(1deg) rotateX(162deg) rotateY(162deg) rotateZ(1deg) perspective(1000px);
+    filter: brightness(1.05) drop-shadow(0 2px 6px rgba(168, 85, 247, 0.2)) saturate(1.05) hue-rotate(162deg);
+  }
+  95% {
+    transform: scale(1.01) rotate(0.5deg) rotateX(171deg) rotateY(171deg) rotateZ(0.5deg) perspective(1000px);
+    filter: brightness(1.02) drop-shadow(0 1px 3px rgba(168, 85, 247, 0.1)) saturate(1.02) hue-rotate(171deg);
   }
   100% {
-    transform: scale(1) rotate(0deg) rotateX(180deg) rotateY(180deg);
-    filter: brightness(1) drop-shadow(0 0 0px transparent) saturate(1);
+    transform: scale(1) rotate(0deg) rotateX(180deg) rotateY(180deg) rotateZ(0deg) perspective(1000px);
+    filter: brightness(1) drop-shadow(0 0 0px transparent) saturate(1) hue-rotate(180deg);
   }
 }
 
