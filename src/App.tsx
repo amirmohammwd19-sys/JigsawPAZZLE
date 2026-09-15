@@ -327,6 +327,8 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
       return [];
     }
   });
+  const [showComboEffect, setShowComboEffect] = useState(false);
+  const comboTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -762,7 +764,33 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
     setHoverPiece(null);
     setParticles([]);
     setLastPlacedId(null);
+    setShowComboEffect(false);
   };
+
+  // Combo Visual Effect
+  useEffect(() => {
+    if (combo >= 5) {
+      setShowComboEffect(true);
+      
+      // Clear previous timer
+      if (comboTimerRef.current) {
+        clearTimeout(comboTimerRef.current);
+      }
+      
+      // Hide after 2 seconds
+      comboTimerRef.current = setTimeout(() => {
+        setShowComboEffect(false);
+      }, 2000);
+    } else {
+      setShowComboEffect(false);
+    }
+    
+    return () => {
+      if (comboTimerRef.current) {
+        clearTimeout(comboTimerRef.current);
+      }
+    };
+  }, [combo]);
 
   const doHint = () => {
     const w = pieces.filter(p => !isPieceCorrect(p));
@@ -966,9 +994,9 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
       )}
 
       {/* Combo Visual Effect */}
-      {combo >= 5 && (
+      {showComboEffect && combo >= 5 && (
         <div className="fixed inset-0 pointer-events-none z-40 flex items-center justify-center">
-          <div className="text-9xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-red-500 to-purple-600 animate-bounce-in opacity-20">
+          <div className="text-9xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-red-500 to-purple-600 animate-combo-effect">
             x{combo}
           </div>
         </div>
