@@ -18,6 +18,7 @@ import {
   hasSeenTutorial, markTutorialAsSeen, TUTORIAL_STEPS, THEMES, getCurrentTheme, setTheme, 
   getUnlockedThemes, canUsePowerUp, markPowerUpUsed, getStreakLevel, getComboLevel 
 } from './features';
+import { applyPowerUpEffect, ActivePowerUp } from './powerUpSystem';
 import { getDailyRewards, getLoginStreak, claimDailyReward, loadQuestProgress, saveQuestProgress } from './gameSystems';
 
 type Screen = 'menu' | 'game' | 'stats' | 'achievements' | 'tutorial' | 'daily' | 'powerups' | 'themes' | 'settings' | 'quests' | 'leaderboard' | 'minigames';
@@ -316,6 +317,16 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
   const [toast, setToast] = useState<string | null>(null);
   const [paused, setPaused] = useState(false);
   const [imageLoading, setImageLoading] = useState(true);
+  const [activePowerUps, setActivePowerUps] = useState<Array<{id: string, expiresAt: number}>>([]);
+  const [showPowerUpMenu, setShowPowerUpMenu] = useState(false);
+  const [purchasedPowerUps, setPurchasedPowerUps] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('purchasedPowerUps');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
   
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -618,11 +629,21 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
         setTimeout(() => setToast(null), TOAST_DURATION);
       }
       
-      // نمایش پیام برای combo های بالا
+      // نمایش پیام برای combo های بالا با افکت‌های ویژه
       if (newCombo >= 3) {
         const comboInfo = getComboLevel(newCombo);
         setToast(`${comboInfo.emoji} Combo x${newCombo}! ${comboInfo.level}`);
         setTimeout(() => setToast(null), TOAST_DURATION);
+        
+        // افکت‌های بصری ویژه برای combo های بالا
+        if (newCombo >= 5) {
+          // ایجاد ذرات بیشتر برای combo های بالا
+          if (dims) {
+            const centerX = (dims.sw / 2);
+            const centerY = (dims.sh / 2);
+            spawnParticles(centerX, centerY, 30 + (newCombo * 5), 'celebration');
+          }
+        }
       }
       
       // افکت‌های بصری
@@ -784,6 +805,89 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
     }
   };
 
+  // Power-up usage
+  const usePowerUp = (powerUpId: string) => {
+    if (!purchasedPowerUps.includes(powerUpId)) {
+      showToast('❌ این Power-up را ندارید!');
+      return;
+    }
+
+    let success = false;
+
+    switch (powerUpId) {
+      case 'auto_place':
+        const incorrectPieces = pieces.filter(p => !isPieceCorrect(p));
+        if (incorrectPieces.length > 0) {
+          const randomPiece = incorrectPieces[Math.floor(Math.random() * incorrectPieces.length)];
+          const newPieces = pieces.map(p => {
+            if (p.id === randomPiece.id) {
+              return { ...p, r: p.cr, c: p.cc };
+            }
+            return p;
+          });
+          setPieces(newPieces);
+          showToast('✨ یک تکه به صورت خودکار قرار گرفت!');
+          if (soundOn) playPowerUp();
+          success = true;
+        } else {
+          showToast('⚠️ همه تکه‌ها درست هستند!');
+        }
+        break;
+
+      case 'auto_solve':
+        const unsolvedPieces = pieces.filter(p => !isPieceCorrect(p));
+        const toSolve = unsolvedPieces.slice(0, 5);
+        if (toSolve.length > 0) {
+          const newPieces = pieces.map(p => {
+            if (toSolve.find(tp => tp.id === p.id)) {
+              return { ...p, r: p.cr, c: p.cc };
+            }
+            return p;
+          });
+          setPieces(newPieces);
+          showToast(`🤖 ${toSolve.length} تکه به صورت خودکار حل شد!`);
+          if (soundOn) playPowerUp();
+          success = true;
+        } else {
+          showToast('⚠️ همه تکه‌ها درست هستند!');
+        }
+        break;
+
+      case 'time_bonus':
+        if (gameMode === 'timeAttack') {
+          setTime(time + 30);
+          showToast('⏰ 30 ثانیه به زمان اضافه شد!');
+          if (soundOn) playPowerUp();
+          success = true;
+        } else {
+          showToast('⚠️ فقط در حالت حمله زمانی قابل استفاده است!');
+        }
+        break;
+
+      case 'hint_master':
+        doHint();
+        showToast('🎓 راهنمای رایگان استفاده شد!');
+        success = true;
+        break;
+
+      default:
+        showToast('⚠️ این Power-up هنوز پیاده‌سازی نشده!');
+    }
+
+    if (success) {
+      // Remove from purchased power-ups
+      const newPurchased = purchasedPowerUps.filter(id => id !== powerUpId);
+      setPurchasedPowerUps(newPurchased);
+      
+      // Save to localStorage
+      try {
+        localStorage.setItem('purchasedPowerUps', JSON.stringify(newPurchased));
+      } catch {}
+    }
+
+    setShowPowerUpMenu(false);
+  };
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -858,6 +962,15 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
       {toast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-gradient-to-r from-orange-500 to-red-500 text-white px-6 py-3 rounded-full font-bold shadow-2xl toast-enter animate-glow">
           {toast}
+        </div>
+      )}
+
+      {/* Combo Visual Effect */}
+      {combo >= 5 && (
+        <div className="fixed inset-0 pointer-events-none z-40 flex items-center justify-center">
+          <div className="text-9xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-red-500 to-purple-600 animate-bounce-in opacity-20">
+            x{combo}
+          </div>
         </div>
       )}
 
@@ -995,8 +1108,67 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
             >
               🔄
             </button>
+            <button 
+              onClick={() => setShowPowerUpMenu(true)} 
+              className="px-2 py-1 bg-purple-500/80 hover:bg-purple-500 rounded-lg text-white text-xs transition-all card-hover relative"
+              title="Power-ups"
+            >
+              ⚡
+              {purchasedPowerUps.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                  {purchasedPowerUps.length}
+                </span>
+              )}
+            </button>
           </div>
         </div>
+
+        {/* Power-up Menu Modal */}
+        {showPowerUpMenu && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4" onClick={() => setShowPowerUpMenu(false)}>
+            <div className="bg-gradient-to-br from-purple-900 to-indigo-900 rounded-2xl p-6 max-w-md w-full border-2 border-purple-500/50 shadow-2xl" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-2xl font-bold text-white">⚡ Power-ups</h3>
+                <button onClick={() => setShowPowerUpMenu(false)} className="text-white hover:text-red-400 text-2xl">×</button>
+              </div>
+              
+              {purchasedPowerUps.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="text-6xl mb-4">📦</div>
+                  <p className="text-purple-200">هیچ Power-upی ندارید!</p>
+                  <p className="text-purple-300 text-sm mt-2">از فروشگاه Power-up خریداری کنید</p>
+                </div>
+              ) : (
+                <div className="space-y-3 max-h-96 overflow-y-auto">
+                  {purchasedPowerUps.map((powerUpId, index) => {
+                    const powerUp = POWER_UPS.find(p => p.id === powerUpId);
+                    if (!powerUp) return null;
+                    
+                    return (
+                      <div key={index} className="bg-white/10 rounded-xl p-4 border border-white/20 hover:border-purple-400/50 transition-all">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="text-3xl">{powerUp.emoji}</div>
+                            <div>
+                              <div className="text-white font-bold">{powerUp.name}</div>
+                              <div className="text-purple-200 text-sm">{powerUp.desc}</div>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => usePowerUp(powerUpId)}
+                            className="px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-400 hover:to-emerald-500 rounded-lg text-white text-sm font-bold transition-all"
+                          >
+                            استفاده
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         <div className="mt-2 bg-black/30 rounded-full p-1 border border-white/10">
           <div className="flex items-center gap-3 px-3">
             <div className="flex-1 h-2.5 bg-white/10 rounded-full overflow-hidden">
@@ -1021,15 +1193,21 @@ function Game({ url, name, difficulty, gameMode, onBack }: { url: string; name: 
         <div ref={containerRef} className="w-full relative" style={{ maxWidth: '900px' }}>
           {showThumb && (
             <div 
-              className="fixed bottom-4 right-4 w-20 h-20 md:w-28 md:h-28 rounded-lg overflow-hidden border-2 border-white/30 shadow-2xl bg-black/70 backdrop-blur-md hover:scale-110 transition-transform cursor-pointer z-30"
+              className="absolute top-0 left-0 w-16 h-16 md:w-24 md:h-24 rounded-lg overflow-hidden border-2 border-white/30 shadow-2xl bg-black/70 backdrop-blur-md hover:scale-110 transition-transform cursor-pointer z-40 m-2"
               onClick={() => setPreview(true)}
+              title="کلیک برای پیش‌نمایش کامل"
             >
               <img src={url} alt="" className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+              <div className="absolute bottom-1 right-1 bg-black/70 rounded-full p-1">
+                <svg className="w-3 h-3 md:w-4 md:h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+                </svg>
+              </div>
             </div>
           )}
 
-          <div className="bg-black/40 rounded-xl border-2 border-white/20 overflow-hidden shadow-2xl p-2">
+          <div className="bg-black/40 rounded-xl border-2 border-white/20 overflow-hidden shadow-2xl p-2 mt-28 md:mt-32">
             <svg
               ref={svgRef}
               width="100%"
@@ -1569,25 +1747,39 @@ function DailyChallengeScreen({ onBack, onStart }: { onBack: () => void; onStart
 function PowerUpsScreen({ onBack }: { onBack: () => void }) {
   const stats = getStats();
   const level = calculateLevel(stats.totalXP || 0);
-  const [purchasedItems, setPurchasedItems] = useState<string[]>([]);
+  const [purchasedItems, setPurchasedItems] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('purchasedPowerUps');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
 
   const handlePurchase = (powerUpId: string, cost: number, name: string) => {
-    if ((stats.totalXP || 0) >= cost) {
+    const currentStats = getStats();
+    if ((currentStats.totalXP || 0) >= cost) {
       // Deduct XP
-      const newStats = { ...stats, totalXP: (stats.totalXP || 0) - cost };
+      const newStats = { ...currentStats, totalXP: (currentStats.totalXP || 0) - cost };
       saveStats(newStats);
       
-      // Mark as purchased
-      markPowerUpUsed(powerUpId);
-      setPurchasedItems([...purchasedItems, powerUpId]);
+      // Add to purchased items
+      const newPurchased = [...purchasedItems, powerUpId];
+      setPurchasedItems(newPurchased);
+      
+      // Save to localStorage
+      try {
+        localStorage.setItem('purchasedPowerUps', JSON.stringify(newPurchased));
+      } catch {}
       
       // Play sound
       playPowerUp();
       
       // Show success message
-      alert(`✅ ${name} با موفقیت خریداری شد!`);
+      alert(`✅ ${name} با موفقیت خریداری شد!\nدر بازی از دکمه ⚡ استفاده کنید.`);
     } else {
       playError();
+      alert(`❌ XP کافی نیست!\nنیاز دارید: ${cost} XP\nXP شما: ${currentStats.totalXP || 0} XP`);
     }
   };
 
