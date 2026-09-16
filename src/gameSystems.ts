@@ -1,4 +1,4 @@
-import { GameStats, Quest } from './types';
+import { Quest } from './types';
 
 // ============= DAILY LOGIN REWARDS =============
 export interface DailyReward { day: number; reward: number; emoji: string; claimed: boolean }
@@ -55,7 +55,8 @@ export function getDailyQuests(): Quest[] {
   return [
     { id: 'complete_3_puzzles', title: 'سه پازل کامل کن', description: '3 پازل را در امروز کامل کن', emoji: '🎯', target: 3, reward: 200, type: 'daily', progress: 0 },
     { id: 'earn_500_xp', title: '500 XP کسب کن', description: '500 XP در امروز جمع کن', emoji: '💎', target: 500, reward: 150, type: 'daily', progress: 0 },
-    { id: 'streak_5', title: 'Streak 5', description: 'به Streak 5 برس', emoji: '🔥', target: 5, reward: 100, type: 'daily', progress: 0 }
+    { id: 'streak_5', title: 'Streak 5', description: 'به Streak 5 برس', emoji: '🔥', target: 5, reward: 100, type: 'daily', progress: 0 },
+    { id: 'combo_7', title: 'Combo 7', description: 'به Combo 7 برس', emoji: '⚡', target: 7, reward: 150, type: 'daily', progress: 0 }
   ];
 }
 
@@ -63,7 +64,8 @@ export function getWeeklyQuests(): Quest[] {
   return [
     { id: 'complete_10_puzzles', title: '10 پازل کامل کن', description: '10 پازل را در این هفته کامل کن', emoji: '🏆', target: 10, reward: 500, type: 'weekly', progress: 0 },
     { id: 'earn_2000_xp', title: '2000 XP کسب کن', description: '2000 XP در این هفته جمع کن', emoji: '💎', target: 2000, reward: 400, type: 'weekly', progress: 0 },
-    { id: 'streak_10', title: 'Streak 10', description: 'به Streak 10 برس', emoji: '🔥', target: 10, reward: 300, type: 'weekly', progress: 0 }
+    { id: 'streak_10', title: 'Streak 10', description: 'به Streak 10 برس', emoji: '🔥', target: 10, reward: 300, type: 'weekly', progress: 0 },
+    { id: 'perfect_game', title: 'بازی کامل', description: 'یک پازل با 100% کارایی', emoji: '💯', target: 1, reward: 600, type: 'weekly', progress: 0 }
   ];
 }
 
@@ -77,4 +79,66 @@ export function loadQuestProgress(): Quest[] {
     if (data) return JSON.parse(data);
   } catch {}
   return [...getDailyQuests(), ...getWeeklyQuests()];
+}
+
+// Reset daily quests at midnight
+export function resetDailyQuestsIfNeeded(): void {
+  try {
+    const lastReset = localStorage.getItem('dailyQuestsReset');
+    const today = new Date().toDateString();
+    
+    if (lastReset !== today) {
+      const weeklyQuests = loadQuestProgress().filter(q => q.type === 'weekly');
+      const newQuests = [...getDailyQuests(), ...weeklyQuests];
+      saveQuestProgress(newQuests);
+      localStorage.setItem('dailyQuestsReset', today);
+    }
+  } catch {}
+}
+
+// Reset weekly quests on Monday
+export function resetWeeklyQuestsIfNeeded(): void {
+  try {
+    const lastReset = localStorage.getItem('weeklyQuestsReset');
+    const monday = new Date();
+    monday.setDate(monday.getDate() - (monday.getDay() === 0 ? 6 : monday.getDay() - 1));
+    const mondayStr = monday.toDateString();
+    
+    if (lastReset !== mondayStr) {
+      const dailyQuests = loadQuestProgress().filter(q => q.type === 'daily');
+      const newQuests = [...dailyQuests, ...getWeeklyQuests()];
+      saveQuestProgress(newQuests);
+      localStorage.setItem('weeklyQuestsReset', mondayStr);
+    }
+  } catch {}
+}
+
+// Update quest progress
+export function updateQuestProgress(questId: string, amount: number = 1): void {
+  try {
+    const quests = loadQuestProgress();
+    const updated = quests.map(q => {
+      if (q.id === questId && q.progress < q.target) {
+        return { ...q, progress: Math.min(q.target, q.progress + amount) };
+      }
+      return q;
+    });
+    saveQuestProgress(updated);
+  } catch {}
+}
+
+// Track puzzle completion for quests
+export function trackPuzzleCompletion(difficulty: string, time: number, moves: number, efficiency: number): void {
+  updateQuestProgress('complete_3_puzzles');
+  updateQuestProgress('complete_10_puzzles');
+  
+  // Track XP quest
+  const xpEarned = Math.floor(100 + (difficulty === 'hard' ? 50 : difficulty === 'medium' ? 25 : 0));
+  updateQuestProgress('earn_500_xp', xpEarned);
+  updateQuestProgress('earn_2000_xp', xpEarned);
+  
+  // Track perfect game
+  if (efficiency >= 100) {
+    updateQuestProgress('perfect_game');
+  }
 }
